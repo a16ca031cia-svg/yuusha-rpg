@@ -12,19 +12,19 @@
   const any = (...f) => (x, y) => f.some(g => g(x, y));
   const RIG = {
     thunder: {
-      front: { fwd: -1, weapon: any(box(0, 69, 30, 95), box(28, 77, 46, 96)), shoulder: [52, 79], flow: (x, y) => x >= 86, neck: [80, 66], eyes: [[43, 45, 48, 56], [56, 44, 67, 56]], skin: [52, 51] },
+      front: { fwd: -1, weapon: any(box(0, 69, 30, 95), box(28, 77, 46, 96)), shoulder: [52, 79], flow: (x, y) => x >= 86, neck: [80, 66], eyes: [[41, 44, 49, 57], [54, 42, 70, 58]], skin: [52, 51] },
       runL: { fwd: -1, weapon: any(box(0, 54, 24, 78), box(25, 62, 47, 81)), shoulder: [52, 66], near: (x, y) => y >= 84 && x <= 63, nearHip: [58, 84], far: any(box(70, 80, 88, 110), box(89, 88, 99, 110)), farHip: [76, 82], flow: (x, y) => x >= 84, neck: [70, 60] },
       runR: { fwd: 1, weapon: any(box(92, 79, 139, 93), box(112, 64, 139, 92)), shoulder: [86, 76], near: (x, y) => y >= 95 && x >= 76, nearHip: [82, 93], far: any(box(0, 97, 66, 120), box(50, 93, 66, 120)), farHip: [64, 92], flow: (x, y) => x <= 60, neck: [78, 66] },
       back: { back: true, weapon: box(87, 74, 135, 102), shoulder: [84, 80], legL: box(44, 107, 63, 128), legR: box(66, 108, 90, 128), flow: (x, y) => x <= 44, neck: [60, 66] },
     },
     ice: {
-      front: { fwd: -1, staff: true, weapon: any(seg(8, 30, 42, 102, 4), box(0, 8, 25, 52), box(22, 62, 34, 75)), shoulder: [28, 68], flow: (x, y) => x >= 74 && y >= 38, neck: [60, 50], eyes: [[37, 39, 42, 50], [49, 37, 61, 49]], skin: [46, 46] },
+      front: { fwd: -1, staff: true, weapon: any(seg(8, 30, 42, 102, 4), box(0, 8, 25, 52), box(22, 62, 34, 75)), shoulder: [28, 68], flow: (x, y) => x >= 74 && y >= 38, neck: [60, 50], eyes: [[37, 38, 44, 51], [47, 35, 64, 50]], skin: [46, 46] },
       runL: { fwd: -1, staff: true, weapon: any(seg(4, 28, 42, 92, 4.5), box(0, 25, 20, 55), box(21, 58, 33, 68)), shoulder: [27, 63], near: (x, y) => y >= 80 && x <= 58, nearHip: [52, 80], far: box(74, 82, 93, 100), farHip: [74, 80], flow: (x, y) => x >= 94 || (y < 75 && x >= 66), neck: [68, 50] },
       runR: { fwd: 1, staff: true, scale: 1.3, weapon: any(seg(104, 18, 80, 68, 4), box(92, 12, 111, 32), box(86, 44, 96, 54)), shoulder: [91, 48], near: any(box(62, 58, 80, 84), box(70, 70, 86, 84)), nearHip: [66, 56], far: box(38, 62, 62, 76), farHip: [60, 58], flow: (x, y) => x <= 44, neck: [64, 30] },
       back: { back: true, staff: true, weapon: any(seg(112, 32, 100, 104, 3.5), box(95, 28, 116, 46), box(88, 64, 97, 76)), shoulder: [93, 70], legL: box(43, 100, 57, 121), legR: box(62, 100, 77, 121), flow: (x, y) => x <= 40, neck: [55, 60] },
     },
     samurai: {
-      front: { fwd: -1, weapon: any(box(0, 70, 34, 97), box(33, 82, 52, 101)), shoulder: [55, 88], flow: (x, y) => x >= 96 && y <= 102, neck: [80, 55], eyes: [[48, 49, 54, 59], [65, 45, 76, 58]], skin: [58, 54] },
+      front: { fwd: -1, weapon: any(box(0, 70, 34, 97), box(33, 82, 52, 101)), shoulder: [55, 88], flow: (x, y) => x >= 96 && y <= 102, neck: [80, 55], eyes: [[48, 48, 55, 60], [63, 46, 77, 59]], skin: [58, 54] },
       runL: { fwd: -1, weapon: any(box(0, 61, 26, 80), box(26, 66, 40, 81)), shoulder: [45, 70], near: (x, y) => x <= 62 && y >= 80, nearHip: [58, 82], far: (x, y) => x >= 72 && y >= 92, farHip: [76, 88], flow: (x, y) => x >= 70 && y < 66, neck: [60, 45] },
       runR: { fwd: 1, weapon: any(box(113, 52, 136, 80), box(96, 63, 113, 80)), shoulder: [88, 62], near: (x, y) => x >= 78 && y >= 88, nearHip: [82, 86], far: any(box(52, 91, 76, 119), box(38, 94, 52, 119)), farHip: [70, 88], flow: (x, y) => (x <= 64 && y < 64) || x <= 30, neck: [84, 40] },
       back: { back: true, weapon: box(84, 64, 117, 92), shoulder: [76, 74], legL: box(37, 106, 53, 120), legR: box(63, 106, 82, 120), flow: (x, y) => x <= 36 && y <= 96, neck: [55, 55] },
@@ -56,13 +56,24 @@
     for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) px[y * w + x] = s.px[Math.floor(y / k) * s.w + Math.floor(x / k)];
     return { w, h, px };
   }
-  // 「＞＜」の目：目のあたりを肌の色で塗りつぶし、左の目に「＞」、右の目に「＜」を描く
+  // 「＞＜」の目：元の目（まつ毛・白目・光まで）を肌の色で消し、左の目に「＞」、右の目に「＜」を描く
+  //   目の範囲の中で、目の中心から「肌ではない色」でつながっている所だけを消す（範囲に入った髪の毛は残す）
   function dizzyEyes(px, w, R) {
     const skin = px[R.skin[1] * w + R.skin[0]];
+    const isSkin = v => { const r = v & 255, g = v >> 8 & 255, b = v >> 16 & 255; return r > 200 && g > 140 && b < g - 12; };
     R.eyes.forEach(([x0, y0, x1, y1], k) => {
       let lash = 0, dark = 1e9;
       for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) { const v = px[y * w + x]; if (!v) continue; const b = (v & 255) + (v >> 8 & 255) + (v >> 16 & 255); if (b < dark) { dark = b; lash = v; } }
-      for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) if (px[y * w + x]) px[y * w + x] = skin;
+      const mx = (x1 - x0) * .3, my = (y1 - y0) * .3, seen = new Set(), st = [];
+      for (let y = Math.round(y0 + my); y <= y1 - my; y++) for (let x = Math.round(x0 + mx); x <= x1 - mx; x++) { const v = px[y * w + x]; if (v && !isSkin(v)) { seen.add(y * w + x); st.push([x, y]); } }
+      while (st.length) {
+        const [x, y] = st.pop();
+        for (const [nx, ny] of [[x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]]) {
+          if (nx < x0 || nx > x1 || ny < y0 || ny > y1) continue; const i = ny * w + nx;
+          if (seen.has(i) || !px[i] || isSkin(px[i])) continue; seen.add(i); st.push([nx, ny]);
+        }
+      }
+      for (const i of seen) px[i] = skin;
       const hh = Math.max(2, Math.min(5, Math.floor((y1 - y0) / 2) - 1)), ww = Math.min(x1 - x0, hh + 1), cy = Math.round((y0 + y1) / 2) + 1;
       const left = Math.round((x0 + x1) / 2 - ww / 2), tip = k === 0 ? left + ww : left, base = k === 0 ? left : left + ww, d = tip > base ? -1 : 1;
       for (let i = 0; i <= hh; i++) {

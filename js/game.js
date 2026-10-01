@@ -19,6 +19,7 @@
       coins: 0, mats: { forge: 0, soul: 0 }, pity: 0, gachaSeq: 1, gachaLast: null, autoDis: { on: false, maxRar: 1 },
       cur: 'hero', chars: { hero: { own: true, star: 1 } },
       daily: null, login: { last: '', streak: 0 },
+      newsSeen: 0, // 読んだお知らせの一番新しい番号
     };
   };
   G.initNewGame = function () {

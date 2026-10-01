@@ -115,6 +115,19 @@
     const face = (draw) => {
       const o = L.head.slice();
       for (const e of EYES) for (let y = e.y0; y <= e.y1; y++) for (let x = e.x0; x <= e.x1; x++) if (o[y * w + x]) o[y * w + x] = SKIN;
+      // 枠の外にはみ出したまつ毛なども消す：枠を少し広げ、消した所から「肌ではない色」でつながっている点を肌色に
+      const isSkin = v => { const r = v & 255, g = v >> 8 & 255, b = v >> 16 & 255; return r > 200 && g > 140 && b < g - 12; };
+      for (const e of EYES) {
+        const X0 = e.x0 - 3, X1 = e.x1 + 3, Y0 = e.y0 - 3, Y1 = e.y1 + 2, st = [];
+        for (let y = e.y0; y <= e.y1; y++) for (let x = e.x0; x <= e.x1; x++) st.push([x, y]);
+        while (st.length) {
+          const [x, y] = st.pop();
+          for (const [nx, ny] of [[x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]]) {
+            if (nx < X0 || nx > X1 || ny < Y0 || ny > Y1) continue; const i = ny * w + nx;
+            if (!o[i] || o[i] === SKIN || isSkin(o[i])) continue; o[i] = SKIN; st.push([nx, ny]);
+          }
+        }
+      }
       const put = (x, y, v) => { if (x >= 0 && y >= 0 && x < w && y < h) o[y * w + x] = v; };
       for (const e of EYES) draw(e, put);
       return o;
@@ -125,7 +138,7 @@
     });
     L.headHurt = face((e, put) => {
       // 左の目は「>」、右の目は「<」
-      const tip = e.apex > 0 ? e.x1 : e.x0 + 1, base = e.apex > 0 ? e.x0 : e.x1, my = e.yb - 3;
+      const ww = 5, left = Math.round((e.x0 + e.x1) / 2 - ww / 2), tip = e.apex > 0 ? left + ww : left, base = e.apex > 0 ? left : left + ww, my = e.yb - 3; // 幅をそろえて線が途切れないように
       for (let k = 0; k <= 4; k++) { const x = Math.round(base + (tip - base) * k / 4), d = e.apex > 0 ? -1 : 1; for (const yy of [my - 4 + k, my + 4 - k]) { put(x, yy, LASH); put(x + d, yy, LASH); put(x, yy + 1, LASH2); } }
     });
     SP.L = L;
