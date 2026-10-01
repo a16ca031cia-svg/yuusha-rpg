@@ -204,6 +204,8 @@
   // ------------------------------------------------------------ 地形判定
   const tileOf = (x, y) => Math.floor(y / T) * W.D.W + Math.floor(x / T);
   G.tileOf = (x, y) => tileOf(x, y);
+  const seen = e => !W || W.home || !!W.vis[tileOf(e.x, e.y)]; // 敵が今の視界の中にいるか
+  G.enemySeen = seen;
   function solid(px, py) {
     const D = W.D, tx = Math.floor(px / T), ty = Math.floor(py / T);
     if (tx < 0 || ty < 0 || tx >= D.W || ty >= D.H) return true;
@@ -615,6 +617,8 @@
   // 敵へのダメージ。proc=true の攻撃だけが付与効果を発動（派生攻撃からの無限再発動を防ぐ）
   function hitEnemy(e, base, o) {
     if (e.dead) return 0;
+    // 視界の外（暗いところ）にいる敵には当たらない。見えてから倒す（すでに付いた燃焼・毒だけは続く）
+    if (!seen(e) && o.src !== 'burn' && o.src !== 'poison') return 0;
     let dmg = base, crit = false;
     if (o.canCrit !== false && R() < H.st.crit) { dmg *= H.st.critd; crit = true; }
     dmg *= (.92 + R() * .16) * (e.d.armor || 1);
@@ -1042,7 +1046,7 @@
 
   // 技
   const SK = G.SKILLS;
-  function countNear(x, y, r) { let n = 0; for (const e of W.enemies) if (!e.dead && G.dist(x, y, e.x, e.y) <= r + e.r) n++; return n; }
+  function countNear(x, y, r) { let n = 0; for (const e of W.enemies) if (!e.dead && seen(e) && G.dist(x, y, e.x, e.y) <= r + e.r) n++; return n; } // 見えている敵だけ数える（暗がりへ技を撃たない）
   function skillCond(id, tg) {
     const d = G.dist(H.x, H.y, tg.x, tg.y), kind = SK[id].kind || id, R0 = SK[id].r || (kind === 'spin' ? 36 : 60);
     switch (kind) {
@@ -1057,7 +1061,7 @@
   }
   function trySkill() {
     const tg = H.target;
-    if (!tg || tg.dead) return false;
+    if (!tg || tg.dead || !seen(tg)) return false;
     for (const id of G.activeSkills()) { // 強い技から順に、条件を満たしたものを使う
       if (!id || (H.cds[id] || 0) > 0) continue;
       if (skillCond(id, tg)) { castSkill(id, tg, false); return true; }
@@ -1085,7 +1089,7 @@
   function tryUlt() {
     if ((H.ult || 0) < G.ULT.max || H.act) return false;
     const tg = H.target;
-    if (!tg || tg.dead || G.dist(H.x, H.y, tg.x, tg.y) > G.ULT.range || !losPx(H.x, H.y - 6, tg.x, tg.y - 6)) return false;
+    if (!tg || tg.dead || !seen(tg) || G.dist(H.x, H.y, tg.x, tg.y) > G.ULT.range || !losPx(H.x, H.y - 6, tg.x, tg.y - 6)) return false;
     castUlt(tg); return true;
   }
   function castUlt(tg) {
@@ -1324,7 +1328,7 @@
         A.swA = G.lerp(A.swA, -Math.PI / 2 - .15, Math.min(1, dt * 25)); A.armA = -Math.PI / 2 - .2;
         if (!a.done && p > .35) {
           a.done = true;
-          const tg = a.tg && !a.tg.dead ? a.tg : null;
+          const tg = a.tg && !a.tg.dead && seen(a.tg) ? a.tg : null;
           const strike = (tx, ty, tg) => {
             const S0 = SK[a.sid] || {};
             if (S0.ice) { G.fxAdd({ k: 'pillar', x: tx, y: ty, r: 12 * a.area, h: 46 + 10 * a.stage, dur: .7 }); G.light(tx, ty, 120, .35, '#bfeaff'); G.sfx('freeze'); } // 氷柱
@@ -1339,7 +1343,7 @@
           };
           strike(tg ? tg.x : H.x + Math.cos(a.ang) * 40, tg ? tg.y : H.y + Math.sin(a.ang) * 40, tg);
           // 進化すると別の敵にも雷を落とす（天雷：2か所・神鳴：3か所）
-          const more = W.enemies.filter(e => !e.dead && e !== tg && G.dist(H.x, H.y, e.x, e.y) < 160).sort((p, q) => G.dist(H.x, H.y, p.x, p.y) - G.dist(H.x, H.y, q.x, q.y)).slice(0, a.stage);
+          const more = W.enemies.filter(e => !e.dead && e !== tg && seen(e) && G.dist(H.x, H.y, e.x, e.y) < 160).sort((p, q) => G.dist(H.x, H.y, p.x, p.y) - G.dist(H.x, H.y, q.x, q.y)).slice(0, a.stage);
           for (const e of more) strike(e.x, e.y, e);
           G.shake(3 + a.stage); if (!a.el || a.el === 'chain') { G.sfx('zap'); G.sfx('boom'); }
         }
@@ -1421,7 +1425,7 @@
         const tg = H.target;
         if (tg) {
           const d = G.dist(H.x, H.y, tg.x, tg.y);
-          if (d - tg.r <= H.st.reach * .85) {
+          if (d - tg.r <= H.st.reach * .85 && seen(tg)) { // 見えるまでは近づく（暗がりへ撃たない）
             H.dvx = H.dvy = 0;
             const a = Math.atan2(tg.y - H.y, tg.x - H.x); setFaceTo(a);
             if (H.atkCd <= 0) startAtk(tg);
@@ -1730,7 +1734,7 @@
       } else if (p.k === 'wave') {
         if (solid(nx, ny + 6)) { dead = true; G.burst(p.x, p.y, 10, ['#9ef0ff', '#ffffff'], 60, .35, 1); }
         for (const e of W.enemies) {
-          if (e.dead || p.hit.has(e)) continue;
+          if (e.dead || p.hit.has(e) || !seen(e)) continue; // 暗いところの敵はすり抜ける
           if (G.dist(nx, ny, e.x, e.y - 6) < p.r + e.r) { p.hit.add(e); hitEnemy(e, p.dmg, { src: p.src || 'skill', proc: true, ka: p.ang, kb: p.kb || 70, el: p.el || null }); G.burst(e.x, e.y - 9, 5, [p.col || '#9ef0ff', '#ffffff'], 60, .3, 1); if (p.one) { dead = true; break; } }
         }
         if (R() < .7) G.part(p.x, p.y + (R() - .5) * p.r, -p.vx * .1, -p.vy * .1, .3, p.col || '#9ef0ff', 1, 0);
@@ -1794,7 +1798,7 @@
       const f = W.follows[i]; f.t -= dt;
       if (f.t > 0) continue;
       let e = f.e;
-      if (e.dead) { e = null; let bd = 40; for (const o of W.enemies) { if (o.dead) continue; const d = G.dist(o.x, o.y, f.x, f.y); if (d < bd) { bd = d; e = o; } } }
+      if (e.dead) { e = null; let bd = 40; for (const o of W.enemies) { if (o.dead || !seen(o)) continue; const d = G.dist(o.x, o.y, f.x, f.y); if (d < bd) { bd = d; e = o; } } }
       if (!e) { W.follows.splice(i, 1); continue; }
       f.e = e; f.x = e.x; f.y = e.y;
       G.fxAdd({ k: 'xslash', x: e.x, y: e.y - 10, ang: R() * Math.PI, r: 10 + H.st.followLv * .8, dur: .18, lv: H.st.followLv });
