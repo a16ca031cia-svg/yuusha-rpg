@@ -233,7 +233,12 @@
     $('ciPic').innerHTML = C.gacha ? `<img src="${ART(c)}" alt="">` : `<img class="px" src="${pixURL(c)}" alt="">`;
     $('ciSub').textContent = C.n; $('ciName').textContent = C.ult.n;
     el.style.setProperty('--cc', C.col);
-    el.classList.remove('hidden', 'go'); void el.offsetWidth; el.classList.add('go');
+    el.classList.remove('hidden', 'go');
+    // 技の名前が帯に入りきらない時は文字を小さくして全部見せる
+    const nm = $('ciName'), box = el.querySelector('.ciTxt'); nm.style.fontSize = '';
+    const cs = getComputedStyle(box), avail = box.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+    if (avail > 0 && nm.offsetWidth > avail) nm.style.fontSize = Math.max(14, parseFloat(getComputedStyle(nm).fontSize) * avail / nm.offsetWidth * .97) + 'px';
+    void el.offsetWidth; el.classList.add('go');
     clearTimeout(ui._ciTO); ui._ciTO = setTimeout(() => el.classList.add('hidden'), 900);
   };
 })();

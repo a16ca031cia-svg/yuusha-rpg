@@ -257,9 +257,17 @@ body.titleMode #hud{visibility:hidden}
 #cutin .ciPic{height:150%;align-self:flex-start;margin-top:-6%;transform:skewY(6deg)}
 #cutin .ciPic img{height:100%;width:auto;filter:drop-shadow(0 0 16px var(--cc))}
 #cutin .ciPic img.px{image-rendering:pixelated;height:80%;margin-top:20%}
-#cutin .ciTxt{transform:skewY(6deg)}
-#cutin .ciSub{font-size:clamp(12px,2vw,18px);color:#fff;letter-spacing:.3em;text-shadow:0 2px 0 #000}
-#cutin .ciName{font-size:clamp(30px,6vw,72px);color:#fff;letter-spacing:.08em;text-shadow:3px 0 0 #000,-3px 0 0 #000,0 3px 0 #000,0 -3px 0 #000,0 0 26px var(--cc)}
+#cutin .ciPic{flex-shrink:0}
+/* 文字は画面の右端（帯のはみ出し分＋流れる分）より内側に収める。入りきらない時はJSで文字を小さくする */
+#cutin .ciTxt{transform:skewY(6deg);flex:1;min-width:0;padding-right:calc(16vw + 8px)}
+#cutin .ciSub{font-size:clamp(12px,2vw,18px);color:#fff;letter-spacing:.3em;text-shadow:0 2px 0 #000;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+@media (max-width:760px),(orientation:portrait){
+  #cutin .ciBand{height:min(22vh,160px);padding-left:12vw;gap:2vw}
+  #cutin .ciPic{height:130%;width:32vw;margin-top:-8%}
+  #cutin .ciPic img{width:100%;height:100%;object-fit:cover;object-position:50% 12%}
+  #cutin .ciPic img.px{object-fit:contain;object-position:50% 100%;height:80%;margin-top:30%}
+}
+#cutin .ciName{white-space:nowrap;display:inline-block;font-size:clamp(30px,6vw,72px);color:#fff;letter-spacing:.08em;text-shadow:3px 0 0 #000,-3px 0 0 #000,0 3px 0 #000,0 -3px 0 #000,0 0 26px var(--cc)}
 
 /* ---------- ホーム画面（ソーシャルゲーム風） ---------- */
 #home{display:none!important}
