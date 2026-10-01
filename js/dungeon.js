@@ -92,28 +92,34 @@
       }
       return { tx: r.cx, ty: r.cy };
     };
+    // 深い階ほど敵が多い：部屋の広さあたりの数・1部屋の上限・群れの大きさ・お供の数がだんだん増える
+    const dens = Math.max(13, 22 - f * .5), cap = Math.min(13, 8 + Math.floor(f / 8));
+    const packMax = Math.min(7, (f < 3 ? 3 : 5) + Math.floor(f / 15)), escort = Math.min(2, Math.floor(f / 15));
     for (const r of rooms) {
       if (r === start) continue;
       const area = r.w * r.h;
-      let n = Math.min(8, Math.floor(area / 22) + rng.int(0, 1) + Math.floor(f / 6) + (f >= 3 ? 1 : 0));
+      let n = Math.min(cap, Math.floor(area / dens) + rng.int(0, 1) + Math.floor(f / 6) + (f >= 3 ? 1 : 0));
       n = Math.max(1, n);
       for (let i = 0; i < n; i++) {
         const type = rng.weighted(G.enemyTable(f));
         const p = freeTile(r, 1);
         if (type === 'slime') {
-          const pack = rng.int(2, f < 3 ? 3 : 5);
+          const pack = rng.int(2, packMax);
           for (let k = 0; k < pack; k++) enemies.push({ type, x: p.tx * T + 8 + rng.range(-10, 10), y: p.ty * T + 8 + rng.range(-8, 8) });
         } else {
           enemies.push({ type, x: p.tx * T + 8, y: p.ty * T + 8, elite: rng.chance(0.05 + Math.min(.1, f * .004)) });
+          // お供：同じ種類の敵が近くに並ぶ
+          const ne = rng.int(0, escort);
+          for (let k = 0; k < ne; k++) enemies.push({ type, x: p.tx * T + 8 + rng.range(-14, 14), y: p.ty * T + 8 + rng.range(-12, 12) });
         }
       }
     }
-    // モンスターハウス：まれに弱い敵が密集した部屋（範囲攻撃・連鎖で一掃する見せ場）
-    if (f >= 3 && rng.chance(.25)) {
+    // モンスターハウス：まれに弱い敵が密集した部屋（範囲攻撃・連鎖で一掃する見せ場）。深い階ほど出やすく、数も多い
+    if (f >= 3 && rng.chance(Math.min(.6, .2 + f * .01))) {
       for (const r of rng.shuffle(rooms.slice())) {
         if (r === start || r === far || r.w * r.h < 40) continue;
         r.mh = true;
-        const n = rng.int(12, 18);
+        const n = rng.int(12, 18) + Math.min(10, Math.floor(f / 4));
         for (let i = 0; i < n; i++) {
           const p = freeTile(r, 1);
           enemies.push({ type: rng.chance(.7) ? 'slime' : 'bat', x: p.tx * T + 8 + rng.range(-6, 6), y: p.ty * T + 8 + rng.range(-6, 6) });

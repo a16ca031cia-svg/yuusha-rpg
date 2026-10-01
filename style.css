@@ -290,9 +290,15 @@ body.homeMode canvas#cv{filter:blur(2.5px) brightness(.7) saturate(.9);transitio
 .hubChar::before{content:'';position:absolute;left:10%;right:10%;bottom:4%;height:12%;border-radius:50%;background:radial-gradient(ellipse,var(--cc,#ffd84d) 0,transparent 70%);opacity:.35;filter:blur(6px)}
 .hubChar img{position:relative;height:100%;max-height:78vh;width:auto;max-width:100%;object-fit:contain;filter:drop-shadow(0 0 24px color-mix(in srgb,var(--cc,#fff) 60%,transparent)) drop-shadow(0 12px 18px rgba(0,0,0,.6))}
 .hubChar canvas{position:relative;height:min(60vh,520px);width:auto;aspect-ratio:140/144;image-rendering:pixelated;filter:drop-shadow(0 0 18px rgba(255,220,140,.35)) drop-shadow(0 10px 14px rgba(0,0,0,.6))}
-.hubChar.hop{animation:hubHop .4s ease-out,hubFloat 4s ease-in-out infinite .4s}
+.hubChar{touch-action:manipulation;-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none}
+.hubBody{position:relative;height:100%;display:flex;align-items:flex-end;justify-content:center;transform-origin:50% 100%;will-change:transform}
+.hubChar.sd .hubBody{padding-bottom:9%;box-sizing:border-box}
+.hubBody img{-webkit-touch-callout:none;pointer-events:none}
+.hubChar.hop{animation:hubHop .5s cubic-bezier(.3,1.6,.5,1),hubFloat 4s ease-in-out infinite .5s}
 @keyframes hubFloat{50%{transform:translateY(-8px)}}
-@keyframes hubHop{30%{transform:translateY(-16px) scale(1.02)}100%{transform:none}}
+@keyframes hubHop{35%{transform:translateY(-18px)}100%{transform:none}}
+.hubView{position:absolute;right:4%;bottom:6%;z-index:2;padding:6px 14px;border-radius:18px;font-size:13px;background:rgba(10,8,18,.85);border:2px solid var(--gold);color:var(--gold)}
+.hubView::before{content:'⇄ '}
 .hubBubble{position:absolute;top:8%;left:50%;transform:translateX(10%) scale(.6);opacity:0;max-width:min(320px,70vw);padding:10px 14px;border-radius:14px;background:#fffaf0;color:#2a1a10;font-size:15px;line-height:1.5;box-shadow:0 3px 0 #000,0 0 0 2px #2a1a10;transition:opacity .2s,transform .2s;pointer-events:none}
 .hubBubble::after{content:'';position:absolute;left:18px;bottom:-10px;border:8px solid transparent;border-top-color:#fffaf0}
 .hubBubble.show{opacity:1;transform:translateX(10%) scale(1)}

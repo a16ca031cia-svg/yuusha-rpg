@@ -22,8 +22,9 @@
         </div>
       </div>
       <div class="hubStage">
-        <div class="hubChar" id="hbChar"><img id="hbArt" alt=""><canvas id="hbPix" width="140" height="144"></canvas></div>
+        <div class="hubChar" id="hbChar"><div class="hubBody" id="hbBody"><img id="hbArt" alt="" draggable="false"><canvas id="hbPix" width="140" height="144"></canvas></div></div>
         <div class="hubBubble" id="hbBubble"></div>
+        <button id="hbView" class="hubView hidden" title="イラストとSDキャラを切り替え"></button>
         <div class="hubPlate"><div class="hcEl" id="hbEl"></div><div class="hcNm" id="hbCName"></div><div class="hcSt" id="hbStar"></div></div>
       </div>
       <div class="hubLeft">
@@ -51,6 +52,27 @@
     $('hbGo1').onclick = () => G.depart(false);
     $('hbWait').onclick = () => { G.S.settings.waitHome = !G.S.settings.waitHome; ui.refreshHome(); G.save(); refresh(); };
     $('hbChar').onclick = talk;
+    $('hbView').onclick = e => { e.stopPropagation(); const st = G.S.settings; st.homeView = st.homeView === 'sd' ? 'art' : 'sd'; lastCur = ''; G.sfx('click'); G.save(); refresh(); poke(.5, .22); };
+    // ぷにぷに：押している間つぶれて、離すとぷるんと弾む
+    const ch = $('hbChar');
+    ch.addEventListener('pointerdown', e => { const r = ch.getBoundingClientRect(); press = true; tiltT = ((e.clientX - r.left) / r.width - .5) * 2; J.v += 1.2; });
+    const up = () => { if (!press) return; press = false; J.v -= 4.5; K.v += -tiltT * 9; tiltT = 0; };
+    ch.addEventListener('pointerup', up); ch.addEventListener('pointerleave', up); ch.addEventListener('pointercancel', up);
+  }
+  // ばね：J＝つぶれ具合（＋でつぶれ、−で縦に伸びる）、K＝左右の傾き（ゼリーのように揺れる）
+  const J = { x: 0, v: 0 }, K = { x: 0, v: 0 };
+  let press = false, tiltT = 0;
+  function poke(px, amt) { J.v += amt * 30; K.v += (px - .5) * 12; }
+  function jelly(dt) {
+    dt = Math.min(dt, 1 / 30);
+    for (let s = 0; s < 3; s++) { // 細かく刻んで安定させる
+      const h = dt / 3;
+      J.v += ((press ? .13 : 0) - J.x) * 320 * h - J.v * 7 * h; J.x += J.v * h;
+      K.v += ((press ? tiltT * .5 : 0) - K.x) * 210 * h - K.v * 5 * h; K.x += K.v * h;
+    }
+    const sq = Math.max(-.2, Math.min(.22, J.x)), b = $('hbBody');
+    if (Math.abs(sq) < .001 && Math.abs(K.x) < .002 && !press) { if (b.style.transform) b.style.transform = ''; return; }
+    b.style.transform = `skewX(${(K.x * 10).toFixed(2)}deg) scale(${(1 + sq * .75).toFixed(4)},${(1 - sq).toFixed(4)})`;
   }
   // キャラをタップ：セリフと小さく跳ねる
   let bubTO = 0, lastLine = -1;
@@ -75,7 +97,14 @@
     $('hbCoin').textContent = S.coins.toLocaleString(); $('hbForge').textContent = S.mats.forge.toLocaleString(); $('hbSoul').textContent = S.mats.soul;
     $('hbCName').textContent = C.n; $('hbEl').textContent = C.gacha ? 'UR　' + C.el : C.sub; $('hbEl').classList.toggle('ur', !!C.gacha);
     $('hbStar').innerHTML = '★'.repeat(G.curStar()) + (C.gacha ? '<span class="dimst">' + '★'.repeat(5 - G.curStar()) + '</span>' : '');
-    if (c !== lastCur) { lastCur = c; $('hbArt').src = C.gacha ? ART(c) : ''; $('hbArt').style.display = C.gacha ? '' : 'none'; $('hbPix').style.display = C.gacha ? 'none' : ''; $('hbChar').style.setProperty('--cc', C.col); }
+    const art = C.gacha && S.settings.homeView !== 'sd';
+    if (c + art !== lastCur) {
+      lastCur = c + art; pixKey = '';
+      if (art) $('hbArt').src = ART(c);
+      $('hbArt').style.display = art ? '' : 'none'; $('hbPix').style.display = art ? 'none' : '';
+      $('hbChar').style.setProperty('--cc', C.col); $('hbChar').classList.toggle('sd', !art);
+      $('hbView').classList.toggle('hidden', !C.gacha); $('hbView').textContent = art ? 'SD' : 'イラスト';
+    }
     $('hbPity').textContent = 'UR確定まで あと' + (G.GACHA.pity - S.pity) + '回　単発 ' + G.GACHA.single + '枚 / 10連 ' + G.GACHA.ten.toLocaleString() + '枚';
     // ログインボーナス
     const lg = $('hbLogin');
@@ -107,12 +136,31 @@
     if (eqb && mb) { eqb.classList.toggle('badge', mb.classList.contains('badge')); eqb.dataset.n = mb.dataset.n || ''; }
     menuIcons();
   }
-  // 勇者（イラストがない）は、ドット絵の待機アニメーションを大きく表示
-  let pixT = 0;
+  // ドット絵（SD）の待機アニメーションを大きく表示：勇者はいつも、ガチャのキャラは「SD」に切り替えた時
+  let pixT = 0, pixKey = '', box = null;
+  function sdFrame(c, i) {
+    if (c === 'hero') return G.heroPose && G.heroPose('idle', i);
+    const fr = G.charRigFrame && G.charRigFrame(c, 'front', 'idle', i);
+    return fr ? fr.n : G.charPortrait(c);
+  }
+  // ガチャのキャラはコマの余白が大きいので、待機の全コマが収まる範囲だけを切り出す
+  function sdBox(c) {
+    if (c === 'hero') return { x: 0, y: 0, w: 140, h: 144 };
+    let x0 = 1e9, y0 = 1e9, x1 = -1, y1 = -1;
+    for (let i = 0; i < 8; i++) {
+      const f = sdFrame(c, i); if (!f) return null;
+      const d = f.getContext('2d').getImageData(0, 0, f.width, f.height).data;
+      for (let y = 0; y < f.height; y++) for (let x = 0; x < f.width; x++) if (d[(y * f.width + x) * 4 + 3]) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+    }
+    if (x1 < 0) return null;
+    const p = 3; return { x: x0 - p, y: y0 - p, w: x1 - x0 + 1 + p * 2, h: y1 - y0 + 1 + p };
+  }
   function drawPix(dt) {
-    if (G.S.cur !== 'hero') return;
-    pixT += dt; const cv = $('hbPix'), x = cv.getContext('2d'), i = Math.floor(pixT * 5) % 8, fr = G.heroPose && G.heroPose('idle', i);
-    if (!fr) return; x.clearRect(0, 0, 140, 144); x.imageSmoothingEnabled = false; x.drawImage(fr, 0, 0);
+    const c = G.S.cur, C = G.CHARS[c];
+    if (C.gacha && G.S.settings.homeView !== 'sd') return;
+    if (pixKey !== c) { box = sdBox(c); if (!box) return; pixKey = c; const cv = $('hbPix'); cv.width = box.w; cv.height = box.h; cv.style.aspectRatio = box.w + '/' + box.h; }
+    pixT += dt; const cv = $('hbPix'), x = cv.getContext('2d'), fr = sdFrame(c, Math.floor(pixT * 5) % 8);
+    if (!fr) return; x.clearRect(0, 0, cv.width, cv.height); x.imageSmoothingEnabled = false; x.drawImage(fr, -box.x, -box.y);
   }
   // ホームの時だけ表示（タイトル・切り替え中は隠す）。表示中は通常のHUDを隠す
   let shown = false, acc = 0;
@@ -123,7 +171,7 @@
     const on = S.mode === 'home' && !ui.titleOn && !G.trans;
     if (on !== shown) { shown = on; $('hub').classList.toggle('hidden', !on); document.body.classList.toggle('homeMode', on); if (on) refresh(); }
     if (!on) return;
-    drawPix(dt);
+    drawPix(dt); jelly(dt);
     acc += dt; if (acc > .25) { acc = 0; refresh(); }
   };
   const onMode0 = ui.onMode;
