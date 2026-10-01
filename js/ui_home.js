@@ -52,6 +52,10 @@
     $('hbGo1').onclick = () => G.depart(false);
     $('hbWait').onclick = () => { G.S.settings.waitHome = !G.S.settings.waitHome; ui.refreshHome(); G.save(); refresh(); };
     $('hbChar').onclick = talk;
+    $('retBtn').onclick = () => {
+      const f = G.W && G.W.f;
+      ui.confirm('探索をやめてホームに戻りますか？\n' + (f ? 'B' + f + 'F の' : '') + '続きから再出撃できます。', () => G.retreat());
+    };
     $('hbView').onclick = e => { e.stopPropagation(); const st = G.S.settings; st.homeView = st.homeView === 'sd' ? 'art' : 'sd'; lastCur = ''; G.sfx('click'); G.save(); refresh(); poke(.5, .22); };
     // ぷにぷに：押している間つぶれて、離すとぷるんと弾む
     const ch = $('hbChar');
@@ -163,12 +167,14 @@
     if (!fr) return; x.clearRect(0, 0, cv.width, cv.height); x.imageSmoothingEnabled = false; x.drawImage(fr, -box.x, -box.y);
   }
   // ホームの時だけ表示（タイトル・切り替え中は隠す）。表示中は通常のHUDを隠す
-  let shown = false, acc = 0;
+  let shown = false, acc = 0, retShown = null;
   const update0 = ui.update;
   ui.update = function (dt) {
     update0(dt);
     const S = G.S; if (!S) return;
     const on = S.mode === 'home' && !ui.titleOn && !G.trans;
+    const ret = S.mode === 'dungeon' && !G.trans && !!S.run && !(G.hero && G.hero.dead);
+    if (ret !== retShown) { retShown = ret; $('retBtn').classList.toggle('hidden', !ret); }
     if (on !== shown) { shown = on; $('hub').classList.toggle('hidden', !on); document.body.classList.toggle('homeMode', on); if (on) refresh(); }
     if (!on) return;
     drawPix(dt); jelly(dt);

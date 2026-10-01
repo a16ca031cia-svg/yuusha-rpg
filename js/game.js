@@ -435,6 +435,23 @@
       G.save();
     }, 1.4);
   };
+  // 途中帰還：探索をやめてホームへ。今の階の様子を残しておき、ホームの「続きから出撃」で同じ階から再開できる
+  G.retreat = function () {
+    sync();
+    if (S.mode !== 'dungeon' || G.trans || !S.run || H.dead || W.home) return;
+    G.save(); // 今の階の様子（snap）を記録
+    const run = S.run, f = W.f;
+    G.sfx('depart');
+    G.transition(() => {
+      const rs = run.rs;
+      S.lastRun = rs ? { floor: f, kills: rs.kills, items: rs.items, best: rs.best, t: Math.round(rs.t), coins: rs.coins || 0 } : null;
+      S.mode = 'home'; S.homeMsg = 'B' + f + 'F から帰還した（続きから再出撃できます）';
+      G.resumeRun = run; G.manualStart = true; // 帰ってきた時は自動で出撃しない
+      G.setupHome();
+      G.ui.onMode();
+      G.save();
+    }, 1.0);
+  };
   G.descend = function () {
     sync();
     if (G.trans) return;

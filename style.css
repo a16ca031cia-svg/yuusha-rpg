@@ -299,6 +299,8 @@ body.homeMode canvas#cv{filter:blur(2.5px) brightness(.7) saturate(.9);transitio
 @keyframes hubHop{35%{transform:translateY(-18px)}100%{transform:none}}
 .hubView{position:absolute;right:4%;bottom:6%;z-index:2;padding:6px 14px;border-radius:18px;font-size:13px;background:rgba(10,8,18,.85);border:2px solid var(--gold);color:var(--gold)}
 .hubView::before{content:'⇄ '}
+#menu .retBtn{border-color:#7fd0ff;color:#bfe8ff}
+#menu .retBtn::before{content:'⌂ '}
 .hubBubble{position:absolute;top:8%;left:50%;transform:translateX(10%) scale(.6);opacity:0;max-width:min(320px,70vw);padding:10px 14px;border-radius:14px;background:#fffaf0;color:#2a1a10;font-size:15px;line-height:1.5;box-shadow:0 3px 0 #000,0 0 0 2px #2a1a10;transition:opacity .2s,transform .2s;pointer-events:none}
 .hubBubble::after{content:'';position:absolute;left:18px;bottom:-10px;border:8px solid transparent;border-top-color:#fffaf0}
 .hubBubble.show{opacity:1;transform:translateX(10%) scale(1)}
