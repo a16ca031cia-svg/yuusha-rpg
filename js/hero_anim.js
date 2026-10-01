@@ -289,6 +289,7 @@
     sway: Math.round(Math.sin(i / 8 * TAU) * 1), cape: { amp: .9, ph: i / 8 * TAU, st: 0 }, glint: i >= 2 && i <= 5 ? (i - 2) / 3 : null,
   }));
   POSES.blink = POSES.idle.map(p => Object.assign({}, p, { eye: 1 }));
+  POSES.idleX = POSES.idle.map(p => Object.assign({}, p, { eye: 2 })); // ホームで何度もつつかれた時の「＞＜」の目
   // 足の動き（1歩の周期 q）：前へ振り出す間は足を持ち上げ、踏み出し切るとつま先が上がり（かかとから着地）、
   // 後ろへ送り切るとかかとが上がって蹴り出す
   const foot = (q, stride, lift, tiltK) => {

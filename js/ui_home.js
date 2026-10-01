@@ -79,9 +79,14 @@
     b.style.transform = `skewX(${(K.x * 10).toFixed(2)}deg) scale(${(1 + sq * .75).toFixed(4)},${(1 - sq).toFixed(4)})`;
   }
   // キャラをタップ：セリフと小さく跳ねる
-  let bubTO = 0, lastLine = -1;
+  // 何度もつつくと「＞＜」の目になって、しばらくすると元に戻る
+  const DIZZY_LINES = ['うぅ…目が回る〜', 'つ、つつかないで〜！', 'もう〜っ！', 'くすぐったいってば〜！'];
+  let bubTO = 0, lastLine = -1, taps = [], dizzyT = 0;
   function talk() {
-    const c = G.S.cur, L = G.LINES[c] || G.LINES.hero; let i = Math.floor(Math.random() * L.length); if (i === lastLine) i = (i + 1) % L.length; lastLine = i;
+    const now = performance.now(); taps = taps.filter(t => now - t < 1600); taps.push(now);
+    const dz = taps.length >= 4 || dizzyT > 0;
+    if (dz) { dizzyT = 2.6; poke(.5, .3); }
+    const c = G.S.cur, L = dz ? DIZZY_LINES : (G.LINES[c] || G.LINES.hero); let i = Math.floor(Math.random() * L.length); if (i === lastLine) i = (i + 1) % L.length; lastLine = i;
     const b = $('hbBubble'); b.textContent = L[i]; b.classList.remove('show'); void b.offsetWidth; b.classList.add('show');
     const ch = $('hbChar'); ch.classList.remove('hop'); void ch.offsetWidth; ch.classList.add('hop');
     G.sfx('click'); clearTimeout(bubTO); bubTO = setTimeout(() => b.classList.remove('show'), 2600);
@@ -142,9 +147,10 @@
   }
   // ドット絵（SD）の待機アニメーションを大きく表示：勇者はいつも、ガチャのキャラは「SD」に切り替えた時
   let pixT = 0, pixKey = '', box = null;
-  function sdFrame(c, i) {
-    if (c === 'hero') return G.heroPose && G.heroPose('idle', i);
-    const fr = G.charRigFrame && G.charRigFrame(c, 'front', 'idle', i);
+  function sdFrame(c, i, dz) {
+    const set = dz ? 'idleX' : 'idle';
+    if (c === 'hero') return G.heroPose && G.heroPose(set, i);
+    const fr = G.charRigFrame && G.charRigFrame(c, 'front', set, i);
     return fr ? fr.n : G.charPortrait(c);
   }
   // ガチャのキャラはコマの余白が大きいので、待機の全コマが収まる範囲だけを切り出す
@@ -161,9 +167,11 @@
   }
   function drawPix(dt) {
     const c = G.S.cur, C = G.CHARS[c];
+    if (dizzyT > 0) dizzyT -= dt;
     if (C.gacha && G.S.settings.homeView !== 'sd') return;
     if (pixKey !== c) { box = sdBox(c); if (!box) return; pixKey = c; const cv = $('hbPix'); cv.width = box.w; cv.height = box.h; cv.style.aspectRatio = box.w + '/' + box.h; }
-    pixT += dt; const cv = $('hbPix'), x = cv.getContext('2d'), fr = sdFrame(c, Math.floor(pixT * 5) % 8);
+    pixT += dt;
+    const cv = $('hbPix'), x = cv.getContext('2d'), fr = sdFrame(c, Math.floor(pixT * 5) % 8, dizzyT > 0);
     if (!fr) return; x.clearRect(0, 0, cv.width, cv.height); x.imageSmoothingEnabled = false; x.drawImage(fr, -box.x, -box.y);
   }
   // ホームの時だけ表示（タイトル・切り替え中は隠す）。表示中は通常のHUDを隠す
