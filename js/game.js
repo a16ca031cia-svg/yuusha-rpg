@@ -883,6 +883,11 @@
   // ------------------------------------------------------------ ガチャ
   // 1回の操作ぶんの「コイン消費・全抽選・獲得・天井の更新」をまとめて確定して保存してから演出する。
   // 演出を飛ばしても閉じても結果は変わらず、同じ処理を二度は適用しない
+  // URで出るキャラの候補：まだ持っていないピックアップキャラがいればその中から（全員そろったら全員から）
+  G.gachaURPool = function () {
+    const all = G.CHAR_ORDER.filter(k => G.CHARS[k].gacha), notOwn = all.filter(k => !(G.S.chars[k] && G.S.chars[k].own));
+    return notOwn.length ? notOwn : all;
+  };
   G.gachaPull = function (n) {
     sync();
     const GC = G.GACHA, cost = n === 10 ? GC.ten : GC.single * n;
@@ -898,7 +903,7 @@
       else { let x = G.rng.next(), acc = 0; rr = 'R'; for (const [k, p] of GC.rates) { acc += p; if (x < acc) { rr = k; break; } } }
       if (rr === 'UR') {
         S.pity = 0;
-        const pool = G.CHAR_ORDER.filter(k => G.CHARS[k].gacha), id = pool[Math.floor(G.rng.next() * pool.length)];
+        const pool = G.gachaURPool(), id = pool[Math.floor(G.rng.next() * pool.length)];
         const c = S.chars[id] || (S.chars[id] = { own: false, star: 0 });
         let kind, before = c.own ? c.star : 0;
         if (!c.own) { c.own = true; c.star = 1; c.level = 1; c.exp = 0; kind = 'new'; }

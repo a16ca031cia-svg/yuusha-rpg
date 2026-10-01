@@ -83,7 +83,11 @@
   // ------------------------------------------------------------ ガチャ画面
   ui.extra.gacha = function (b) {
     const S = G.S, GC = G.GACHA, home = S.mode === 'home';
-    const left = GC.pity - S.pity, urEach = (GC.rates[0][1] * 100 / 3).toFixed(4); // 1%÷3（表示用の丸め。抽選には使わない）
+    const urPool = G.gachaURPool(), allUR = G.CHAR_ORDER.filter(c => G.CHARS[c].gacha), prio = urPool.length < allUR.length;
+    const left = GC.pity - S.pity, urEach = +(GC.rates[0][1] * 100 / urPool.length).toFixed(4); // 1%÷候補の人数（表示用の丸め。抽選には使わない）
+    const urNote = prio
+      ? `<b style="color:#ffb0f0">まだ持っていないキャラが優先！</b> URが出た時は ${urPool.map(c => esc(G.CHARS[c].n)).join('・')} から${urPool.length > 1 ? '等しい確率で' : '必ず'}出ます。1人あたり 約${urEach}%`
+      : `URが出た時は${allUR.length}人から等しい確率。1人あたり 約${urEach}%`;
     const btn = (n, cost) => `<button class="gBig ${S.coins >= cost && home ? 'primary' : ''}" data-pull="${n}" ${S.coins >= cost && home ? '' : 'disabled'}>${n === 1 ? '単発' : '10連'}<br><span class="small">${cost.toLocaleString()}枚</span></button>`;
     b.innerHTML = `<div class="col scroll" style="flex:1;min-width:0">
       <div class="gHead"><div class="gTitle">英雄召喚ガチャ</div>
@@ -95,11 +99,11 @@
       <div class="small">所持品 ${S.items.length}/${G.INV_CAP}　自動分解 ${S.autoDis.on ? G.RARITY[S.autoDis.maxRar].n + ' 以下' : 'OFF'}　強化素材 ${S.mats.forge.toLocaleString()}　英雄の魂 ${S.mats.soul}</div>
       <div class="h" style="margin-top:8px">排出内容と確率</div>
       <table class="rates"><tr><th>レア度</th><th>内容</th><th>確率</th></tr>
-        <tr><td><span class="urtag">UR</span></td><td>キャラクター（${G.CHAR_ORDER.filter(c => G.CHARS[c].gacha).map(c => esc(G.CHARS[c].n)).join('・')}）<br><span class="small">URが出た時は3人から等しい確率。1人あたり 約${urEach}%</span></td><td>1%</td></tr>
+        <tr><td><span class="urtag">UR</span></td><td>キャラクター（${G.CHAR_ORDER.filter(c => G.CHARS[c].gacha).map(c => esc(G.CHARS[c].n)).join('・')}）<br><span class="small">${urNote}</span></td><td>1%</td></tr>
         <tr><td style="color:${G.RARITY[3].c}">SSR</td><td>装備（まれにさらに強い SSR+）</td><td>4%</td></tr>
         <tr><td style="color:${G.RARITY[2].c}">SR</td><td>装備</td><td>15%</td></tr>
         <tr><td style="color:${G.RARITY[1].c}">R</td><td>装備</td><td>80%</td></tr></table>
-      <div class="small" style="margin-top:4px">装備の性能は、引いた時点の最深到達階層（B${Math.max(1, S.maxFloor)}F）を基準に決まります。同じキャラを引くと★が上がります（最大★5）。</div>
+      <div class="small" style="margin-top:4px">装備の性能は、引いた時点の最深到達階層（B${Math.max(1, S.maxFloor)}F）を基準に決まります。まだ持っていないキャラがいる間は、URはその中からだけ出ます。全員そろった後に同じキャラを引くと★が上がります（最大★5）。</div>
       ${S.gachaLast ? '<div class="row" style="margin-top:8px"><button id="gLast">前回の結果を見る</button></div>' : ''}
     </div>`;
     b.querySelectorAll('[data-pull]').forEach(el => el.onclick = () => pull(+el.dataset.pull));

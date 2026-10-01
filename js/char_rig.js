@@ -107,13 +107,14 @@
         const v = L.x4[iy * W4 + ix]; if (v) out[Y * FW + X] = v;
       }
     };
+    const hair = y => y < S.ground * .28 ? Math.round((P.hs || 0) * (1 - y / (S.ground * .28))) : 0;
     // 髪や布：首元から離れるほど大きく波打ち、後ろへ流れる（逆写像）
     const flow = () => {
       const L = S.flow; if (!L.n) return;
       const b = L.bb, back = R.back ? -1 : -(R.fwd || -1), [nx, ny] = S.neck, reach = 55 * S.sc;
       for (let Y = b.y0 + oy - 8; Y <= b.y1 + oy + 8; Y++) for (let X = b.x0 + ox - 10; X <= b.x1 + ox + 10; X++) {
         if (X < 0 || Y < 0 || X >= FW || Y >= FH) continue;
-        const y0 = Y - oy, x0 = X - ox - shx(y0);
+        const y0 = Y - oy, x0 = X - ox - shx(y0) - hair(y0); // 頭の揺れ（hair）も体と同じだけずらして、つなぎ目に隙間ができないように
         const t = G.clamp(((x0 - nx) * back) / reach, 0, 1), tt = t * t;
         const sx = Math.round(x0 - back * (((P.fs || 0) * 2.5 + Math.sin((P.fph || 0) - (x0 - nx) * back * .1) * (P.famp || 0) * .5) * t));
         const sy = Math.round(y0 - Math.sin((P.fph || 0) + x0 * .15 * back) * (P.famp || 0) * 1.8 * tt + (P.flift || 0) * tt * 2.5);
@@ -121,7 +122,6 @@
         const v = L.px[sy * w + sx]; if (v) out[Y * FW + X] = v;
       }
     };
-    const hair = y => y < S.ground * .28 ? Math.round((P.hs || 0) * (1 - y / (S.ground * .28))) : 0;
     const wa = (P.wr || 0) * Math.PI / 180;
     if (R.back) {
       blit(S.legL, 0, -(P.lL || 0)); blit(S.legR, 0, -(P.lR || 0));
@@ -154,7 +154,8 @@
       const t = i / 10, s = Math.sin(t * TAU);
       return { lL: Math.round(Math.max(0, s) * 4.5), lR: Math.round(Math.max(0, -s) * 4.5), by: -Math.round(Math.abs(s) * 1.6), dx: Math.round(s), wr: 5 * Math.sin(t * TAU + 1), famp: 2.2, fph: t * 2 * TAU, fs: .4, hs: Math.round(s * 1.5) };
     });
-    if (set === 'idle') return Array.from({ length: 8 }, (_, i) => { const q = i / 8 * TAU; return { by: [0, 0, 0, 1, 1, 1, 1, 0][i], wy: [0, 0, 0, 1, 1, 1, 1, 0][i], famp: .9, fph: q, hs: Math.round(Math.sin(q) * 1.2), wr: Math.sin(q) * 1.5 }; });
+    // 待機：体ごと呼吸で上下し、髪だけがなびく。頭や武器を別々に動かすと切り離した所に隙間ができるので動かさない
+    if (set === 'idle') return Array.from({ length: 8 }, (_, i) => { const q = i / 8 * TAU; return { by: [0, 0, 0, 1, 1, 1, 1, 0][i], famp: .9, fph: q }; });
     // 攻撃：剣・刀は振りかぶって（体の後ろ）振り下ろす。杖は掲げてから前へ振る
     // 角度は画面上の時計回りが正（左向きの絵では、正＝武器の先が上がる・振りかぶる）。lean は正＝のけぞる・負＝前へ倒れる
     if (set === 'atk' && R.staff) return [[10, 2, -1, .5], [24, 3, -2, 1], [30, 4, -3, 1.4], [-6, -3, -1, 2], [-16, -5, 0, 2.2], [-6, -2, 0, 1]].map(([wr, lean, wy, famp], i) => ({ wr, lean, wy, famp, fph: i, wBack: false, dx: i >= 3 ? f * 2 : 0 }));
