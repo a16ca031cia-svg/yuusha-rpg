@@ -13,7 +13,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="icon" href="icon-192.png">
-<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="style.css?v=20261001211343">
 </head>
 <body>
 <canvas id="cv"></canvas>
@@ -100,28 +100,45 @@
   <div class="cwin panel"><div id="cMsg"></div><div class="cbtns"><button id="cYes" class="danger">はい</button><button id="cNo">いいえ</button></div></div>
 </div>
 
-<script src="js/util.js"></script>
-<script src="js/pixel3d.js"></script>
-<script src="js/data.js"></script>
-<script src="js/sprites.js"></script>
-<script src="js/hero_src.js"></script>
-<script src="js/hero_anim.js"></script>
-<script src="js/pixelize.js"></script>
-<script src="js/hero_run_src.js"></script>
-<script src="js/hero_run.js"></script>
-<script src="js/char_src.js"></script>
-<script src="js/char_anim.js"></script>
-<script src="js/char_rig.js"></script>
-<script src="js/dungeon.js"></script>
-<script src="js/art_world.js"></script>
-<script src="js/art_enemies.js"></script>
-<script src="js/audio.js"></script>
-<script src="js/game.js"></script>
-<script src="js/render.js"></script>
-<script src="js/ui.js"></script>
-<script src="js/ui_gacha.js"></script>
-<script src="js/ui_home.js"></script>
-<script src="js/main.js"></script>
-<script src="js/cloud.js"></script>
-</body>
+<script src="js/util.js?v=20261001211343"></script>
+<script src="js/pixel3d.js?v=20261001211343"></script>
+<script src="js/data.js?v=20261001211343"></script>
+<script src="js/sprites.js?v=20261001211343"></script>
+<script src="js/hero_src.js?v=20261001211343"></script>
+<script src="js/hero_anim.js?v=20261001211343"></script>
+<script src="js/pixelize.js?v=20261001211343"></script>
+<script src="js/hero_run_src.js?v=20261001211343"></script>
+<script src="js/hero_run.js?v=20261001211343"></script>
+<script src="js/char_src.js?v=20261001211343"></script>
+<script src="js/char_anim.js?v=20261001211343"></script>
+<script src="js/char_rig.js?v=20261001211343"></script>
+<script src="js/dungeon.js?v=20261001211343"></script>
+<script src="js/art_world.js?v=20261001211343"></script>
+<script src="js/art_enemies.js?v=20261001211343"></script>
+<script src="js/audio.js?v=20261001211343"></script>
+<script src="js/game.js?v=20261001211343"></script>
+<script src="js/render.js?v=20261001211343"></script>
+<script src="js/ui.js?v=20261001211343"></script>
+<script src="js/ui_gacha.js?v=20261001211343"></script>
+<script src="js/ui_home.js?v=20261001211343"></script>
+<script src="js/main.js?v=20261001211343"></script>
+<script src="js/cloud.js?v=20261001211343"></script>
+<script>
+// 新しい版が公開されていたら、セーブしてから自動で読み込み直す（ホーム画面に追加したアプリでも最新になるように）
+(function () {
+  var V = '20261001211343';
+  function check() {
+    fetch('version.json?t=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (j) {
+      if (!j.v || j.v === V) return;
+      if (window.G && G.S && G.S.mode === 'dungeon') return; // 探索中は邪魔しない（ホームにいる時や次に開いた時に更新）
+      var k = 'yr_upd_' + j.v; try { if (sessionStorage.getItem(k)) return; sessionStorage.setItem(k, 1); } catch (e) { }
+      try { G.save && G.save(); } catch (e) { }
+      location.replace(location.pathname + '?v=' + j.v);
+    }).catch(function () { });
+  }
+  check();
+  document.addEventListener('visibilitychange', function () { if (!document.hidden) check(); });
+  setInterval(check, 60 * 1000);
+})();
+</script></body>
 </html>
