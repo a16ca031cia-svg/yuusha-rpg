@@ -3,6 +3,7 @@
 (function () {
   const cv = G.cv = document.getElementById('cv');
   G.scale = 2; G.VW = 640; G.VH = 360;
+  G.BASE_SPEED = 2; // ゲームの基本の速さ（1フレームに進める回数）
   function resize() {
     const dpr = Math.min(2, window.devicePixelRatio || 1); // スマホの高精細画面は2倍までに抑えて軽くする
     const cw = window.innerWidth, ch = window.innerHeight;
@@ -57,7 +58,7 @@
     dt = G.clamp(dt, 0, 1 / 20); // タブ復帰時などに大きく進めない
     if (G.slowT > 0) { G.slowT -= dt; dt *= G.slowK; if (G.slowT <= 0) G.slowK = 1; } // 見せ場の一瞬のスロー
     if (!G.paused) {
-      const n = G.S.settings.speed || 1;
+      const n = (G.S.settings.speed || 1) * G.BASE_SPEED; // 「×1」でも以前の×2の速さで進む
       for (let i = 0; i < n; i++) G.update(dt);
     }
     G.render();

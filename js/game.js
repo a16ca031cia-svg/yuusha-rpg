@@ -1844,7 +1844,7 @@
     updCape(dt);
     if (R() < dt * 14) G.part(W.fire.x + (R() - .5) * 6, W.fire.y - 4, (R() - .5) * 8, -25 - R() * 25, .8 + R() * .5, R() < .3 ? '#ffd35a' : '#ff9b2f', 1, -10, .5);
     if (!G.trans && !S.settings.waitHome && !G.manualStart && !G.paused && !G.uxHold && !(G.ui && G.ui.titleOn)) { // お知らせ・結果などを開いている間は自動出撃を待つ
-      G.homeT -= dt;
+      G.homeT -= dt / (G.BASE_SPEED || 1); // 自動出撃までの秒数は、基本の速さを上げても実際の時間どおり
       if (G.homeT <= 0) G.depart();
     }
   }
