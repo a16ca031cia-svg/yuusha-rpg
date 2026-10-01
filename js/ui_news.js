@@ -12,6 +12,9 @@
     return fetch('news.json?t=' + Date.now(), { cache: 'no-store' }).then(r => r.json()).then(list => {
       if (!Array.isArray(list)) return;
       G.NEWS = list.slice().sort((a, b) => b.id - a.id).slice(0, MAX);
+      // はじめて遊ぶ人には、始める前のお知らせ（開発の更新履歴）を「新着」にしない。前から遊んでいる人は全部が新着
+      const S = G.S;
+      if (S && S.newsSeen === -1) S.newsSeen = S.stats && S.stats.runs === 0 && S.level <= 1 ? (G.NEWS.length ? G.NEWS[0].id : 0) : 0;
       refreshBadge();
     }).catch(() => { });
   };

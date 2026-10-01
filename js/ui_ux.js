@@ -81,7 +81,8 @@
   // ---------------------------------------------------------- 探索の結果
   let prevMax = 0, lastRunSeen = null, inited = false;
   const depart0 = G.depart;
-  G.depart = function (resume) { if (G.S) prevMax = G.S.maxFloor; closeAll(); return depart0.apply(this, arguments); };
+  let prevLv = 0;
+  G.depart = function (resume) { if (G.S) { prevMax = G.S.maxFloor; prevLv = G.S.level; } closeAll(); return depart0.apply(this, arguments); };
   function resultPopup(lr, msg) {
     const rec = lr.floor > prevMax && prevMax > 0, t = lr.t || 0, dead = /力尽き/.test(msg || '');
     show({
@@ -90,12 +91,14 @@
           <div class="rsGrid">
             <div><span>到達</span><b>B${lr.floor}F</b></div><div><span>撃破</span><b>${lr.kills}</b></div>
             <div><span>最大コンボ</span><b>${lr.best}</b></div><div><span>コイン</span><b class="gold">+${(lr.coins || 0).toLocaleString()}</b></div>
-            <div><span>装備</span><b>${lr.items || 0}個</b></div><div><span>時間</span><b>${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}</b></div>
+            <div><span>レベル</span><b>${prevLv && prevLv < G.S.level ? 'Lv' + prevLv + '→' : 'Lv'}${G.S.level}</b></div><div><span>時間</span><b>${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}</b></div>
           </div>
-          ${dead ? '<div class="small" style="margin-top:6px">ヒント：「装備」の「おすすめ一括装備」や、ガチャで手に入る仲間で強くなろう。</div>' : ''}
-          <div class="lbBtn">${G.resumeRun ? '<button id="rsGo" class="primary big">続きから出撃</button>' : '<button id="rsGo" class="primary big">もう一度出撃</button>'}<button id="rsOk">ホームへ</button></div>`;
-        $('rsGo').onclick = () => { closeAll(); G.depart(!!G.resumeRun); };
+          ${dead ? `<div class="small" style="margin-top:6px">${G.S.coins >= G.GACHA.single ? 'ヒント：コインが' + G.S.coins.toLocaleString() + '枚あります。ガチャで装備を手に入れて強くなろう！' : 'ヒント：敵を倒してコインを集め、ガチャで装備や仲間を手に入れて強くなろう。'}</div>` : ''}
+          ${G.S.coins >= G.GACHA.single ? `<div class="lbBtn"><button id="rsGacha" class="gachaBtn big">ガチャを引く（${Math.floor(G.S.coins / G.GACHA.single)}回分）</button></div>` : ''}
+          <div class="lbBtn">${G.resumeRun ? '<button id="rsGo" class="primary big">続きから出撃</button>' : `<button id="rsGo" class="primary big">B${G.checkpoint()}Fから出撃</button>`}<button id="rsOk">ホームへ</button></div>`;
+        $('rsGo').onclick = () => { closeAll(); G.depart(!!G.resumeRun, G.checkpoint()); };
         $('rsOk').onclick = close;
+        if ($('rsGacha')) $('rsGacha').onclick = () => { closeAll(); ui.open('gacha'); };
       }
     });
   }
@@ -111,8 +114,9 @@
     if (!home && cur) closeAll(); // 出撃したら閉じる
     // 自動出撃がONの時は、放置で遊べるようにポップアップを数秒で自動で閉じる（ログインボーナスは自動で受け取る）
     const autoOn = home && !S.settings.waitHome && !G.manualStart;
+    const neverPulled = (S.gachaSeq || 1) <= 1 && S.coins >= G.GACHA.single; // まだ一度もガチャを引いていない人には、ガチャの案内を出したままにする
     if (cur && autoOn && cur.key !== 'mission') {
-      cur.t = (cur.t || 0) + dt; const lim = cur.key === 'result' ? 6 : 10;
+      cur.t = (cur.t || 0) + dt; const lim = cur.key === 'result' ? (neverPulled ? 20 : 6) : 10; // ガチャ未経験なら案内を長めに出す
       $('uxAuto').textContent = Math.ceil(lim - cur.t) + '秒後に閉じます';
       if (cur.t >= lim) { if (cur.key === 'login' && G.loginReady()) { const r = G.loginClaim(); if (r) { ui.toast('ログインボーナス コイン +' + r + '枚'); G.save(); } } close(); }
     } else $('uxAuto').textContent = '';
@@ -131,6 +135,10 @@
     // ミッションの受け取れる数
     const mb = document.querySelector('.hubM[data-p="mission"]');
     if (mb) { const n = claimable(); mb.classList.toggle('badge', n > 0); mb.dataset.n = n || ''; const mi = mb.querySelector('.mi'); if (mi && !mi.firstChild) mi.innerHTML = '<b class="miStar">★</b>'; }
+    // ガチャが引けるだけコインがある時は、ガチャのボタンとバナーで知らせる（装備はガチャで手に入る）
+    const canPull = S.coins >= G.GACHA.single, gb = document.querySelector('.hubM[data-p="gacha"]');
+    if (gb) { gb.classList.toggle('badge', canPull); gb.dataset.n = canPull ? '引ける！' : ''; }
+    const bn = $('hbGacha'); if (bn) bn.classList.toggle('ready', canPull);
     // 所持品がいっぱい
     const full = S.items.length >= G.INV_CAP;
     for (const b of document.querySelectorAll('#menu button[data-p="inv"], .hubM[data-p="inv"]')) b.classList.toggle('full', full);
@@ -143,6 +151,7 @@
     const ub = $('ultBar'); if (ub && H) ub.classList.toggle('full', (H.ult || 0) >= G.ULT.max);
     // 自動出撃までの残り時間（出撃ボタンのゲージ）
     const go = $('hbGo');
+    if (go) go.classList.toggle('first', home && !S.stats.runs && !cur); // まだ一度も出撃していない人には出撃ボタンを指さす
     if (go) { const auto = home && !S.settings.waitHome && !G.manualStart; go.classList.toggle('auto', auto); go.style.setProperty('--p', auto ? Math.max(0, Math.min(1, 1 - G.homeT / 3.5)).toFixed(3) : 0); }
   };
   build();

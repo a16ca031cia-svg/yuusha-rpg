@@ -13,13 +13,13 @@
       equip: { weapon: null, head: null, body: null, feet: null, acc1: null, acc2: null },
       learned: [], skillSet: [null, null, null], skillOff: {}, // skillOff：使わない設定にした技（覚えた技は基本すべて自動で使う）
       autoSell: { on: false, maxRarity: 0, slots: { weapon: true, head: true, body: true, feet: true, acc: true }, maxAffixLv: 99, keep: [] },
-      settings: { vol: .6, bgm: .5, fx: 2, dmgNum: true, shake: true, speed: 1, waitHome: false },
+      settings: { vol: .6, bgm: .5, fx: 2, dmgNum: true, shake: true, speed: 1, waitHome: false, autoEquip: true }, // 自動装着は最初からON（強い装備を手に入れたらすぐ使う）
       mode: 'home', run: null, stats: { kills: 0, deaths: 0, runs: 0 }, rngS: 0, homeMsg: '',
       // ガチャ・キャラクター：共通のコイン・素材・天井、選択中のキャラ、キャラごとの育成状況
       coins: 0, mats: { forge: 0, soul: 0 }, pity: 0, gachaSeq: 1, gachaLast: null, autoDis: { on: false, maxRar: 1 },
       cur: 'hero', chars: { hero: { own: true, star: 1 } },
       daily: null, login: { last: '', streak: 0 },
-      newsSeen: 0, // 読んだお知らせの一番新しい番号
+      newsSeen: -1, // 読んだお知らせの一番新しい番号（-1＝まだ一度も読み込んでいない）
     };
   };
   G.initNewGame = function () {
@@ -390,7 +390,10 @@
     G.onTileChange(true);
     // 最深記録の更新を告知
     if (f > S.maxFloor && S.maxFloor > 0 && !snap) setTimeout(() => { G.ui.toast('最深記録更新！ B' + f + 'F'); G.sfx('learn'); }, 1400);
-    if (f > S.maxFloor) S.maxFloor = f;
+    if (f > S.maxFloor) {
+      S.maxFloor = f;
+      if (f >= 6 && (f - 1) % 5 === 0) { S.cpBack = 0; setTimeout(() => G.ui.toast('中継地点 B' + f + 'F に到達！ 次からここから出撃できます'), 1600); } // 新しい中継地点
+    }
     S.lastFloor = f;
     const rs = G.runStats(); if (!snap) rs.floorT = 0;
     if (!snap) G.ui && G.ui.banner('B' + f + 'F', D.theme.n + (f % 5 === 0 ? '　― 階層の主が待つ ―' : ''));
@@ -410,20 +413,24 @@
     G.homeT = 3.5; H.ult = 0; H.act = null; // ホームに戻ると必殺技ゲージはリセット
     G.music.play('home');
   };
-  G.depart = function (resume) {
+  // 中継地点：最深到達階から、B6F・B11F・B16F…（5階ごと）のうち一番深いところから始められる
+  //   ただし、そこから1階も進めずに力尽きた時は1段（5階）浅くする（育っていないキャラで同じ所で倒れ続けないように）。3階以上進めたら1段戻す
+  G.checkpoint = () => { const m = G.S.maxFloor || 0, top = m >= 6 ? Math.floor((m - 1) / 5) * 5 + 1 : 1; return Math.max(1, top - 5 * (G.S.cpBack || 0)); };
+  G.depart = function (resume, from) {
     sync();
     if (G.trans) return;
     G.sfx('depart');
     G.manualStart = false;
     const rr = resume && G.resumeRun; G.resumeRun = null;
+    const f0 = Math.max(1, Math.min(G.checkpoint(), from | 0 || 1));
     G.transition(() => {
       S.mode = 'dungeon';
       if (rr) { S.run = rr; G.enterFloor(rr.floor, rr.snap); } // 中断した挑戦の続きから
       else {
         S.stats.runs++;
-        S.run = { seed: (R() * 4294967296) >>> 0, floor: 1, rs: { kills: 0, items: 0, best: 0, t: 0, floorT: 0 } };
+        S.run = { seed: (R() * 4294967296) >>> 0, floor: f0, start: f0, rs: { kills: 0, items: 0, best: 0, t: 0, floorT: 0 } };
         H.hp = H.st.maxHp; H.cds = {}; H.shield = 0; H.ult = 0; // 出撃開始時は必殺技ゲージ0
-        G.enterFloor(1);
+        G.enterFloor(f0);
       }
       G.ui.onMode();
     });
@@ -434,6 +441,8 @@
       // 今回の挑戦の戦績を記録してホームで表示
       const rs = S.run && S.run.rs;
       S.lastRun = rs ? { floor: W.f, kills: rs.kills, items: rs.items, best: rs.best, t: Math.round(rs.t), coins: rs.coins || 0 } : null;
+      // 中継地点の調整：始めた階から1階も進めずに力尽きたら次は1段浅く、3階以上進めたら1段深く（最深の中継地点まで）
+      if (S.run && W.f) { const prog = W.f - (S.run.start || 1); if (prog <= 0) S.cpBack = (S.cpBack || 0) + 1; else if (prog >= 3) S.cpBack = Math.max(0, (S.cpBack || 0) - 1); }
       S.mode = 'home'; S.run = null; S.homeMsg = msg || '';
       G.setupHome();
       G.ui.onMode();
@@ -854,6 +863,7 @@
     for (const k of G.SLOTS) if (S.equip[k] != null && !G.itemById(S.equip[k])) S.equip[k] = null; // なくなった装備は外す
     S.hpFrac = 1;
     G.makeHero(); G.checkLearn(); G.setupHome(); G.storeCur();
+    if (S.settings.autoEquip) G.autoEquip(); // 交代したキャラにも一番いい装備を
     G.ui.refreshSkills(); G.ui.onMode(); G.save();
     return '';
   };
@@ -1845,7 +1855,7 @@
     if (R() < dt * 14) G.part(W.fire.x + (R() - .5) * 6, W.fire.y - 4, (R() - .5) * 8, -25 - R() * 25, .8 + R() * .5, R() < .3 ? '#ffd35a' : '#ff9b2f', 1, -10, .5);
     if (!G.trans && !S.settings.waitHome && !G.manualStart && !G.paused && !G.uxHold && !(G.ui && G.ui.titleOn)) { // お知らせ・結果などを開いている間は自動出撃を待つ
       G.homeT -= dt / (G.BASE_SPEED || 1); // 自動出撃までの秒数は、基本の速さを上げても実際の時間どおり
-      if (G.homeT <= 0) G.depart();
+      if (G.homeT <= 0) G.depart(false, G.checkpoint()); // 自動出撃は中継地点から
     }
   }
 

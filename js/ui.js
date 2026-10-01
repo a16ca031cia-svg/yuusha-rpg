@@ -25,7 +25,7 @@
     $('bgmBtn').onclick = () => { const s = G.S.settings; s.muteBgm = !s.muteBgm; G.setVolume(); ui.refreshSound(); G.save(); };
     $('seBtn').onclick = () => { const s = G.S.settings; s.muteSe = !s.muteSe; G.setVolume(); ui.refreshSound(); G.save(); };
     $('mClose').onclick = () => ui.close();
-    $('departBtn').onclick = () => G.depart(false);
+    $('departBtn').onclick = () => G.depart(false, G.checkpoint());
     $('resumeBtn').onclick = () => G.depart(true);
     $('waitBtn').onclick = () => { G.S.settings.waitHome = !G.S.settings.waitHome; ui.refreshHome(); G.save(); };
     $('modal').addEventListener('pointerdown', e => { if (e.target.id === 'modal') ui.close(); });
@@ -505,8 +505,9 @@
       <div class="col scroll" style="flex:1">${view.map(it => `<div class="row" style="flex-wrap:nowrap"><input type="checkbox" data-chk="${it.id}" ${v.sel.has(it.id) ? 'checked' : ''} ${it.fav || G.usedByAny(it.id) ? 'disabled' : ''}><div style="flex:1;min-width:0">${itemRow(it, sel.item === it.id)}</div></div>`).join('') || '<div class="small">該当する装備はありません</div>'}</div>
       <div class="pager"><button id="pPrev" ${v.page ? '' : 'disabled'}>◀</button>${v.page + 1} / ${pages}<button id="pNext" ${v.page < pages - 1 ? '' : 'disabled'}>▶</button></div>
     </div>
-    <div class="col scroll" style="width:330px;flex:none">${selIt ? itemCard(selIt, `<div class="btnrow" style="margin-top:6px"><button data-act="fav" data-id="${selIt.id}">${selIt.fav ? '★ 解除' : '☆ お気に入り'}</button>${disBtns(selIt)}<button data-goeq="${selIt.id}">装備画面で比較</button></div>`) : '<div class="small">装備をタップ（クリック）すると詳細を表示します。<br><br>★＝お気に入り（分解から保護）<br>どれかのキャラが装備中の装備・お気に入りは分解されません。</div>'}</div>`;
+    <div class="col scroll" style="width:330px;flex:none">${selIt ? itemCard(selIt, `<div class="btnrow" style="margin-top:6px"><button data-act="fav" data-id="${selIt.id}">${selIt.fav ? '★ 解除' : '☆ お気に入り'}</button>${disBtns(selIt)}<button data-goeq="${selIt.id}">装備画面で比較</button></div>`) : '<div class="small">装備をタップ（クリック）すると詳細を表示します。<br><br>★＝お気に入り（分解から保護）<br>どれかのキャラが装備中の装備・お気に入りは分解されません。</div>' + (S.items.length <= 6 ? `<div class="hintBox">装備は<b>ガチャ</b>で手に入ります。敵を倒して集めたコインで引こう！<br><button data-gogacha="1" class="gachaBtn">ガチャへ</button></div>` : '')}</div>`;
     const re = () => { v.page = 0; ui.render(); };
+    b.querySelectorAll('[data-gogacha]').forEach(x => x.onclick = () => ui.open('gacha'));
     $('fSlot').onchange = e => { v.slot = e.target.value; re(); };
     $('fRar').onchange = e => { v.rar = +e.target.value; re(); };
     $('fAf').onchange = e => { v.af = e.target.value; re(); };
@@ -557,7 +558,7 @@
       <div class="opt"><span>画面揺れ</span><button id="sShake" class="${s.shake ? 'on' : ''}">${s.shake ? 'ON' : 'OFF'}</button></div>
       <div class="opt"><span>ゲーム速度</span><div class="btnrow">${[1, 2, 4].map(v => `<button data-sp="${v}" class="${s.speed === v ? 'on' : ''}">×${v}</button>`).join('')}</div></div>
       <div class="opt"><span>おすすめ装備を自動で装着（新しい装備を拾った時）</span><button id="sAutoEq" class="${s.autoEquip ? 'on' : ''}">${s.autoEquip ? 'ON' : 'OFF'}</button></div>
-      <div class="opt"><span>ホームで待機（自動出発しない）</span><button id="sWait" class="${s.waitHome ? 'on' : ''}">${s.waitHome ? 'ON' : 'OFF'}</button></div>
+      <div class="opt"><span>自動出撃（ホームに戻ったら数秒後に自動でダンジョンへ）</span><button id="sWait" class="${s.waitHome ? '' : 'on'}">${s.waitHome ? 'OFF' : 'ON'}</button></div>
       <div class="opt"><span>セーブ（定期・階層移動・戦利品・変更時に自動保存）${G.cloud ? `<br><span class="small">クラウド保存：${G.cloud.state === 'on' ? '有効' + (G.cloud.lastAt ? '（最終 ' + new Date(G.cloud.lastAt).toLocaleTimeString() + '）' : '') : G.cloud.state === 'loading' ? '確認中' : '使えません（この画面では端末内だけに保存）'}${G.cloud.error ? '　※前回の保存に失敗（自動でやり直します）' : ''}</span>` : ''}</span><button id="sSave">今すぐ保存</button></div>
       <div class="opt" style="display:block"><div>セーブデータの引っ越し（別のブラウザや端末に進行を移す）</div>
         <div class="small" style="margin:4px 0">「書き出す」で出たコードをコピーし、移したい先のゲームの同じ欄に貼り付けて「読み込む」を押します（ホームにいる時だけ読み込めます）。</div>

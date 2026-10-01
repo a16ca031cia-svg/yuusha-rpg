@@ -248,7 +248,7 @@ body.titleMode #hud{visibility:hidden}
 .gCard .gName{font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .gCard .gRar{font-size:12px}
 .gCard .gTag{font-size:10px;color:var(--dim);min-height:14px}
-@media (max-width:760px){.gGrid .gCard{width:calc(50% - 4px);min-width:0} .gArts{height:150px} .gTitle{font-size:18px} #gfx .urBox{flex-direction:column} #gfx .urArt{max-height:56vh}}
+@media (max-width:760px){.gGrid{gap:5px}.gGrid .gCard{width:calc(33.3% - 4px);min-width:0;padding:4px} .gCard .gPic{height:56px} .gCard .ic{width:34px;height:34px} .gCard .gName{font-size:10px} /* 10連でも3列で一画面に収まりやすく */ .gArts{height:150px} .gTitle{font-size:18px} #gfx .urBox{flex-direction:column} #gfx .urArt{max-height:56vh}}
 /* ---------- 必殺技のカットイン ---------- */
 #cutin{position:fixed;inset:0;z-index:25;pointer-events:none;overflow:hidden}
 #cutin .ciBand{position:absolute;left:-10%;right:-10%;top:32%;height:min(30vh,200px);transform:skewY(-6deg) translateX(-110%);display:flex;align-items:center;gap:4vw;padding-left:14%;
@@ -360,6 +360,20 @@ body.homeMode canvas#cv{filter:blur(2.5px) brightness(.7) saturate(.9);transitio
 /* 自動出撃までの残り時間：出撃ボタンの下のゲージ */
 .hubGo{position:relative;overflow:hidden}
 .hubGo.auto::after{content:'';position:absolute;left:0;bottom:0;height:4px;width:calc(var(--p,0) * 100%);background:linear-gradient(90deg,#fff6c0,#ffd84d);box-shadow:0 0 8px #ffd84d}
+.hintBox{margin-top:10px;padding:8px 10px;border-radius:6px;border:1px dashed #ff8ac8;background:rgba(255,120,200,.08);font-size:13px;line-height:1.7}
+.hintBox button{margin-top:6px}
+button.okDone{background:linear-gradient(#2f6a3a,#1d4426);border-color:#7fe07a;color:#e8ffe0;cursor:default}
+button.big{font-size:16px;padding:10px 18px}
+/* ガチャが引ける時：バナーが光って「引ける！」 */
+.hubBanner.ready{animation:bnReady 1.4s ease-in-out infinite}
+.hubBanner.ready::after{content:'引ける！';position:absolute;right:8px;top:6px;z-index:3;padding:2px 8px;border-radius:10px;background:#ff3d7a;color:#fff;font-size:13px;box-shadow:0 0 0 2px #000;animation:nwPulse 1.2s ease-in-out infinite}
+@keyframes bnReady{50%{box-shadow:0 0 22px rgba(255,120,200,.9),0 3px 0 #000}}
+.hubM[data-p="gacha"].badge::after{font-size:9px;white-space:nowrap;right:-8px}
+/* はじめての出撃：ボタンが脈打ち、上に吹き出し */
+.hubGo.first{overflow:visible;animation:goPulse 1s ease-in-out infinite}
+.hubGo.first::before{content:'ここをタップして出撃！';position:absolute;bottom:calc(100% + 10px);left:50%;transform:translateX(-50%);white-space:nowrap;padding:6px 12px;border-radius:12px;background:#fffaf0;color:#2a1a10;font-size:14px;letter-spacing:0;text-shadow:none;box-shadow:0 3px 0 #000;animation:goHint 1s ease-in-out infinite;pointer-events:none}
+@keyframes goPulse{50%{box-shadow:0 0 0 4px rgba(255,216,77,.6),0 0 24px rgba(255,160,60,.8)}}
+@keyframes goHint{50%{transform:translateX(-50%) translateY(-5px)}}
 /* ボタンを押した手ごたえ */
 button:active:not(:disabled){transform:translateY(1px) scale(.97);filter:brightness(1.15)}
 /* ミニマップ：タップで拡大 */
@@ -557,8 +571,8 @@ body.touch #title .tNote{display:none}
   #loot{top:calc(172px + env(safe-area-inset-top))!important}
   #miniWrap.big{transform:scale(1.8)}
   #banner .b1{font-size:28px;letter-spacing:3px} #banner .b2{font-size:13px}
-  #toast{font-size:16px;white-space:normal;width:90vw;text-align:center}
-  #bossBar{top:calc(128px + env(safe-area-inset-top));width:80vw}
+  #toast{font-size:15px;white-space:normal;width:auto;max-width:88vw;text-align:center;top:34%;padding:6px 12px;border-radius:10px;background:rgba(10,8,18,.8);box-shadow:0 0 0 1px rgba(255,216,77,.35);z-index:6} /* 状態の枠・ミニマップの下に、読みやすい下地付きで */
+  #bossBar{top:auto;bottom:calc(120px + env(safe-area-inset-bottom));width:80vw} /* 状態の枠と重ならないよう、技アイコンのすぐ上へ */
   #home{bottom:calc(120px + env(safe-area-inset-bottom));width:calc(100vw - 16px)}
   .homeCard{min-width:0;padding:10px 12px}
   #soundHint{bottom:calc(118px + env(safe-area-inset-bottom))}

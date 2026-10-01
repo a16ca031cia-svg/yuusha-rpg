@@ -48,8 +48,8 @@
     $('hbSet').onclick = () => ui.open('set');
     $('hbGacha').onclick = () => ui.open('gacha');
     el.querySelectorAll('.hubM').forEach(b => b.onclick = () => b.dataset.p === 'mission' ? G.openMissions && G.openMissions() : ui.open(b.dataset.p));
-    $('hbGo').onclick = () => G.depart(!!G.resumeRun);
-    $('hbGo1').onclick = () => G.depart(false);
+    $('hbGo').onclick = () => G.depart(!!G.resumeRun, G.checkpoint()); // 続きがなければ中継地点から
+    $('hbGo1').onclick = () => G.depart(false, 1);
     $('hbWait').onclick = () => { G.S.settings.waitHome = !G.S.settings.waitHome; ui.refreshHome(); G.save(); refresh(); };
     $('hbChar').onclick = talk;
     $('retBtn').onclick = () => {
@@ -135,8 +135,9 @@
     const rr = G.resumeRun;
     $('hbGoT').textContent = rr ? '続きから出撃' : '出撃';
     const auto = !S.settings.waitHome && !G.manualStart && !G.trans ? `　${Math.max(0, G.homeT).toFixed(1)}秒後に自動出撃` : '';
-    $('hbGoS').textContent = (rr ? 'B' + rr.floor + 'F から' : 'B1F から') + (S.maxFloor > 0 ? '　最深 B' + S.maxFloor + 'F' : '') + auto;
-    $('hbGo1').classList.toggle('hidden', !rr);
+    const cp = G.checkpoint();
+    $('hbGoS').textContent = (rr ? 'B' + rr.floor + 'F から' : 'B' + cp + 'F から') + (S.maxFloor > 0 ? '　最深 B' + S.maxFloor + 'F' : '') + auto;
+    $('hbGo1').classList.toggle('hidden', !rr && cp <= 1);
     $('hbWait').textContent = '自動出撃 ' + (S.settings.waitHome ? 'OFF' : 'ON'); $('hbWait').classList.toggle('on', !S.settings.waitHome);
     const lr = S.lastRun;
     $('hbLast').innerHTML = S.homeMsg ? esc(S.homeMsg) + (lr ? `　<span class="small">B${lr.floor}F 到達・撃破 ${lr.kills}・最大 ${lr.best} コンボ・コイン +${(lr.coins || 0).toLocaleString()}</span>` : '') : (S.stats.runs ? '準備ができたら出撃しよう' : 'ようこそ！ダンジョンで集めたコインでガチャを引いて、仲間と装備を手に入れよう');

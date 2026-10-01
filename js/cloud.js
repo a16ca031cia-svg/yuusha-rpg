@@ -12,14 +12,14 @@
   // 読み込みが終わるまでは出発を待たせる（古いデータで始めて上書きしないように）
   const depart = G.depart;
   let pendingDepart = null;
-  G.depart = function (resume) {
-    if (C.state === 'loading') { pendingDepart = [resume]; G.ui.toast('セーブデータを確認中…'); return; }
+  G.depart = function (resume, from) {
+    if (C.state === 'loading') { pendingDepart = [resume, from]; G.ui.toast('セーブデータを確認中…'); return; }
     departedEarly = true;
     return depart.apply(this, arguments);
   };
   const finishLoading = state => {
     C.state = state;
-    if (pendingDepart) { const a = pendingDepart; pendingDepart = null; G.depart(a[0]); }
+    if (pendingDepart) { const a = pendingDepart; pendingDepart = null; G.depart(a[0], a[1]); }
   };
 
   async function write() {

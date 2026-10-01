@@ -225,7 +225,23 @@
     el.innerHTML = `<div class="gRes"><div class="h" style="font-size:18px;text-align:center">召喚結果（${rec.n}回）</div>
       <div class="gGrid">${cards}</div>
       <div class="small" style="text-align:center">消費コイン ${rec.cost.toLocaleString()}枚　UR確定まで あと ${G.GACHA.pity - rec.pity}回　所持コイン ${G.S.coins.toLocaleString()}枚</div>
+      ${(() => {
+        const r = G.recommendEquip(); if (!r.changes.length) return '';
+        if (G.S.settings.autoEquip) { // 自動装着ONなら、その場で付け替えて結果だけ見せる
+          const p0 = G.powerOf(G.calcStats(G.S.equip)); G.applyEquip(r.plan); const p1 = G.powerOf(G.calcStats(G.S.equip)); G.save();
+          return `<div class="row" style="justify-content:center;margin-top:8px"><button class="okDone big">自動で装備しました！　総合力 ${G.fmtBig(p0)} → <b style="color:#ffe36a">${G.fmtBig(p1)}</b></button></div>`;
+        }
+        return `<div class="row" style="justify-content:center;margin-top:8px"><button id="gEquip" class="primary big">おすすめを装備する（${r.changes.length}部位）</button></div>`;
+      })()}
+      ${(() => { const nu = rec.res.find(r => r.t === 'ur' && r.kind === 'new'); return nu && G.S.mode === 'home' && G.S.cur !== nu.c ? `<div class="row" style="justify-content:center;margin-top:8px"><button id="gSwitch" data-c="${nu.c}" class="gachaBtn big">${esc(G.CHARS[nu.c].n)} で出撃する</button></div>` : ''; })()}
       <div class="row" style="justify-content:center;margin-top:8px"><button id="gClose" class="primary">閉じる</button><button id="gAgain1">もう一度 単発</button><button id="gAgain10">もう一度 10連</button></div></div>`;
+    // 新しく仲間になったキャラにその場で交代
+    if ($('gSwitch')) $('gSwitch').onclick = () => { const c = $('gSwitch').dataset.c, err = G.switchChar(c); $('gSwitch').className = 'okDone big'; $('gSwitch').onclick = null; $('gSwitch').textContent = err || G.CHARS[c].n + ' に交代しました！'; ui.refreshHome(); };
+    // 引いた装備をその場で付ける（総合力がどれだけ上がったかも見せる）
+    if ($('gEquip')) $('gEquip').onclick = () => {
+      const r = G.recommendEquip(), p0 = G.powerOf(G.calcStats(G.S.equip)); G.applyEquip(r.plan); const p1 = G.powerOf(G.calcStats(G.S.equip));
+      G.sfx('lvup'); $('gEquip').onclick = null; $('gEquip').className = 'okDone big'; $('gEquip').innerHTML = `装備しました！　総合力 ${G.fmtBig(p0)} → <b style="color:#ffe36a">${G.fmtBig(p1)}</b>`; G.save();
+    };
     const close = () => { G.gachaSeen(rec.id); el.classList.add('hidden'); el.innerHTML = ''; if (G.S.mode === 'home') G.music.play('home'); ui.refreshHome(); ui.upgradeCheck(); };
     $('gClose').onclick = close;
     $('gAgain1').onclick = () => { close(); ui.open('gacha'); pull(1); };
