@@ -56,37 +56,11 @@
     for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) px[y * w + x] = s.px[Math.floor(y / k) * s.w + Math.floor(x / k)];
     return { w, h, px };
   }
-  // 「＞＜」の目：元の目（まつ毛・白目・光まで）を肌の色で消し、左の目に「＞」、右の目に「＜」を描く
-  //   目の範囲の中で、目の中心から「肌ではない色」でつながっている所だけを消す（範囲に入った髪の毛は残す）
-  function dizzyEyes(px, w, R) {
-    const skin = px[R.skin[1] * w + R.skin[0]];
-    const isSkin = v => { const r = v & 255, g = v >> 8 & 255, b = v >> 16 & 255; return r > 200 && g > 140 && b < g - 12; };
-    R.eyes.forEach(([x0, y0, x1, y1], k) => {
-      let lash = 0, dark = 1e9;
-      for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) { const v = px[y * w + x]; if (!v) continue; const b = (v & 255) + (v >> 8 & 255) + (v >> 16 & 255); if (b < dark) { dark = b; lash = v; } }
-      const mx = (x1 - x0) * .3, my = (y1 - y0) * .3, seen = new Set(), st = [];
-      for (let y = Math.round(y0 + my); y <= y1 - my; y++) for (let x = Math.round(x0 + mx); x <= x1 - mx; x++) { const v = px[y * w + x]; if (v && !isSkin(v)) { seen.add(y * w + x); st.push([x, y]); } }
-      while (st.length) {
-        const [x, y] = st.pop();
-        for (const [nx, ny] of [[x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]]) {
-          if (nx < x0 || nx > x1 || ny < y0 || ny > y1) continue; const i = ny * w + nx;
-          if (seen.has(i) || !px[i] || isSkin(px[i])) continue; seen.add(i); st.push([nx, ny]);
-        }
-      }
-      for (const i of seen) px[i] = skin;
-      const hh = Math.max(2, Math.min(5, Math.floor((y1 - y0) / 2) - 1)), ww = Math.min(x1 - x0, hh + 1), cy = Math.round((y0 + y1) / 2) + 1;
-      const left = Math.round((x0 + x1) / 2 - ww / 2), tip = k === 0 ? left + ww : left, base = k === 0 ? left : left + ww, d = tip > base ? -1 : 1;
-      for (let i = 0; i <= hh; i++) {
-        const x = Math.round(base + (tip - base) * i / hh);
-        for (const yy of [cy - hh + i, cy + hh - i]) { px[yy * w + x] = lash; px[yy * w + x + d] = lash; }
-      }
-    });
-  }
   const BUILT = {};
   function build(c, v, src, dizzy) {
     const R = RIG[c] && RIG[c][v]; if (!R || !src) return null;
     const sc = R.scale || 1, s = sc !== 1 ? scaleUp(src, sc) : src, w = s.w, h = s.h, px = s.px.slice();
-    if (dizzy && R.eyes) dizzyEyes(px, w, R);
+    if (dizzy && R.eyes) G.dizzyEyes(px, w, h, R.eyes, R.skin); // 目のパーツだけ「＞＜」に差し替える（重なった髪は残す）
     const P = (p) => p && [p[0] * sc, p[1] * sc];
     const o = { R, w, h, sc };
     o.weapon = layer(px, w, h, R.weapon, sc);

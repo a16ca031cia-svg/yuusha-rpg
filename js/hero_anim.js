@@ -112,23 +112,12 @@
     // 表情差分：目を肌色で塗りつぶし、閉じた目（瞬き）と「><」（被弾）を描き足す
     const SKIN = px[50 * w + 49] || 0xffa7d4fc, LASH = 0xff0f0723, LASH2 = 0xff343964;
     const EYES = [{ x0: 39, x1: 44, y0: 45, y1: 56, yb: 53, apex: 1 }, { x0: 54, x1: 65, y0: 43, y1: 56, yb: 52, apex: -1 }];
+    // 目だけを別パーツとして取り出し（G.eyeParts）、その部分だけ肌色にしてから描き直す。目に重なった髪はそのまま残す
+    const BOX = EYES.map(e => [e.x0 - 3, e.y0 - 3, e.x1 + 3, e.y1 + 2]);
     const face = (draw) => {
-      const o = L.head.slice();
-      for (const e of EYES) for (let y = e.y0; y <= e.y1; y++) for (let x = e.x0; x <= e.x1; x++) if (o[y * w + x]) o[y * w + x] = SKIN;
-      // 枠の外にはみ出したまつ毛なども消す：枠を少し広げ、消した所から「肌ではない色」でつながっている点を肌色に
-      const isSkin = v => { const r = v & 255, g = v >> 8 & 255, b = v >> 16 & 255; return r > 200 && g > 140 && b < g - 12; };
-      for (const e of EYES) {
-        const X0 = e.x0 - 3, X1 = e.x1 + 3, Y0 = e.y0 - 3, Y1 = e.y1 + 2, st = [];
-        for (let y = e.y0; y <= e.y1; y++) for (let x = e.x0; x <= e.x1; x++) st.push([x, y]);
-        while (st.length) {
-          const [x, y] = st.pop();
-          for (const [nx, ny] of [[x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]]) {
-            if (nx < X0 || nx > X1 || ny < Y0 || ny > Y1) continue; const i = ny * w + nx;
-            if (!o[i] || o[i] === SKIN || isSkin(o[i])) continue; o[i] = SKIN; st.push([nx, ny]);
-          }
-        }
-      }
-      const put = (x, y, v) => { if (x >= 0 && y >= 0 && x < w && y < h) o[y * w + x] = v; };
+      const o = L.head.slice(), lab = G.eyeParts(o, w, h, BOX, [49, 50]);
+      for (let i = 0; i < lab.length; i++) if (lab[i] === 1) { o[i] = SKIN; lab[i] = 3; }
+      const put = (x, y, v) => { if (x >= 0 && y >= 0 && x < w && y < h && lab[y * w + x] === 3) o[y * w + x] = v; }; // 肌（消した目）の上にだけ描く
       for (const e of EYES) draw(e, put);
       return o;
     };

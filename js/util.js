@@ -10,6 +10,78 @@ G.easeIn = t => t * t * t;
 G.easeInOut = t => t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
 G.easeOutBack = t => { const c1 = 1.70158, c3 = c1 + 1; return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2); };
 G.angDiff = (a, b) => { let d = (b - a) % (Math.PI * 2); if (d > Math.PI) d -= Math.PI * 2; if (d < -Math.PI) d += Math.PI * 2; return d; };
+// ---------- 目のパーツ分け（「＞＜」の目に差し替えるため） ----------
+// px：ドット絵（0xAABBGGRR）、eyes：目のまわりの枠 [x0,y0,x1,y1] の配列、skinPt：肌の色を取る点
+// 返り値 lab：各点が 1＝目（白目・黒目・光・まつ毛）、2＝髪など目の上に重なっているもの、3＝肌、0＝それ以外
+//   色の出どころで見分ける：目の真ん中によく出る色＝目、目より上の髪によく出る色＝髪、ほおの色＝肌。
+//   線の色（暗い色）や両方に出る色は、まわりに目と髪のどちらが多いかで決める
+G.eyeParts = function (px, w, h, eyes, skinPt) {
+  const lab = new Uint8Array(w * h), sum = v => (v & 255) + (v >> 8 & 255) + (v >> 16 & 255), DARK = 200;
+  let ex0 = 1e9, ey0 = 1e9, ex1 = -1, ey1 = -1;
+  for (const [x0, y0, x1, y1] of eyes) { ex0 = Math.min(ex0, x0); ey0 = Math.min(ey0, y0); ex1 = Math.max(ex1, x1); ey1 = Math.max(ey1, y1); }
+  // 肌：指定の点の色と、目のすぐ下（ほお）の明るい色
+  const skin = new Set([px[skinPt[1] * w + skinPt[0]]]);
+  for (let y = ey1 + 1; y <= Math.min(h - 1, ey1 + 5); y++) for (let x = ex0; x <= ex1; x++) { const v = px[y * w + x]; if (v && sum(v) > 480) skin.add(v); }
+  // 髪：目のすぐ上（前髪）の色の出やすさ。リボンなどの飾りが入らないように、目の幅の中・目の少し上だけを見る
+  const hairC = new Map(); let hairN = 0;
+  for (let y = Math.max(0, ey0 - 12); y <= ey0 - 2; y++) for (let x = ex0; x <= ex1; x++) { const v = px[y * w + x]; if (!v || skin.has(v)) continue; hairC.set(v, (hairC.get(v) || 0) + 1); hairN++; }
+  // 目：それぞれの枠の真ん中あたりの色の出やすさ
+  const eyeC = new Map(); let eyeN = 0;
+  for (const [x0, y0, x1, y1] of eyes) {
+    const mx = (x1 - x0) * .3, my = (y1 - y0) * .3;
+    for (let y = Math.round(y0 + my); y <= y1 - my; y++) for (let x = Math.round(x0 + mx); x <= x1 - mx; x++) { const v = px[y * w + x]; if (!v || skin.has(v)) continue; eyeC.set(v, (eyeC.get(v) || 0) + 1); eyeN++; }
+  }
+  const inBox = (x, y) => eyes.some(([x0, y0, x1, y1]) => x >= x0 && x <= x1 && y >= y0 && y <= y1);
+  const amb = [];
+  for (let y = ey0; y <= ey1; y++) for (let x = ex0; x <= ex1; x++) {
+    if (!inBox(x, y)) continue; const i = y * w + x, v = px[i]; if (!v) continue;
+    if (skin.has(v)) { lab[i] = 3; continue; }
+    const e = (eyeC.get(v) || 0) / Math.max(1, eyeN), hr = (hairC.get(v) || 0) / Math.max(1, hairN);
+    if (sum(v) < DARK) { lab[i] = 0; amb.push(i); continue; } // 線の色はあとで決める
+    if (e > 0 && e >= hr * 1.2) lab[i] = 1; else if (hr > 0) { lab[i] = 2; if (e > 0) amb.push(i); } else lab[i] = 1; // 髪に出ない色（白目など）は目
+  }
+  // まつ毛：目の中身（白目・黒目）のすぐ外側をふちどる暗い線は目。目の中身の上下左右の広がりから少しはみ出した所まで
+  for (const [x0, y0, x1, y1] of eyes) {
+    const cMin = {}, cMax = {}, rMin = {}, rMax = {};
+    for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) if (lab[y * w + x] === 1) {
+      cMin[x] = Math.min(cMin[x] ?? 1e9, y); cMax[x] = Math.max(cMax[x] ?? -1, y); rMin[y] = Math.min(rMin[y] ?? 1e9, x); rMax[y] = Math.max(rMax[y] ?? -1, x);
+    }
+    const colOk = (x, y) => [x - 1, x, x + 1].some(c => cMin[c] !== undefined && y >= cMin[c] - 3 && y <= cMax[c] + 2);
+    const rowOk = (x, y) => [y - 2, y - 1, y, y + 1, y + 2].some(r => rMin[r] !== undefined && x >= rMin[r] - 2 && x <= rMax[r] + 2);
+    for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) { const i = y * w + x, v = px[i]; if (v && !lab[i] && sum(v) < DARK && colOk(x, y) && rowOk(x, y)) lab[i] = 1; }
+  }
+  // 残った線の色は、まわり（8方向）に目と髪のどちらが多いかで決める。何回か繰り返して、線が目の側・髪の側に分かれるようにする
+  for (let it = 0; it < 4; it++) for (const i of amb) {
+    let ne = 0, nh = 0; const x = i % w, y = (i / w) | 0;
+    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) { if (!dx && !dy) continue; const l = lab[(y + dy) * w + x + dx]; if (l === 1) ne++; else if (l === 2) nh++; }
+    lab[i] = ne > 0 && ne >= nh ? 1 : nh > 0 ? 2 : lab[i];
+  }
+  // 髪の色だけど、ほとんど目に囲まれている点（目の中の光など）は目
+  for (let y = ey0; y <= ey1; y++) for (let x = ex0; x <= ex1; x++) {
+    const i = y * w + x; if (lab[i] !== 2 || !inBox(x, y)) continue; let ne = 0;
+    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) if ((dx || dy) && lab[(y + dy) * w + x + dx] === 1) ne++;
+    if (ne >= 5) lab[i] = 1;
+  }
+  return lab;
+};
+// 「＞＜」の目に差し替える：目のパーツだけ肌色にして、目か肌だった所にだけ「＞」「＜」を描く（重なった髪はそのまま上に残る）
+G.dizzyEyes = function (px, w, h, eyes, skinPt) {
+  const lab = G.eyeParts(px, w, h, eyes, skinPt), skin = px[skinPt[1] * w + skinPt[0]];
+  eyes.forEach(([x0, y0, x1, y1], k) => {
+    let lash = 0, dark = 1e9, cx = 0, cy = 0, n = 0, ty0 = 1e9, ty1 = -1;
+    for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
+      const i = y * w + x; if (lab[i] !== 1) continue;
+      const b = (px[i] & 255) + (px[i] >> 8 & 255) + (px[i] >> 16 & 255); if (b < dark) { dark = b; lash = px[i]; }
+      cx += x; cy += y; n++; ty0 = Math.min(ty0, y); ty1 = Math.max(ty1, y); px[i] = skin; lab[i] = 3;
+    }
+    if (!n) return;
+    cx /= n; cy = (ty0 + ty1) / 2 + 1;
+    const hh = Math.max(2, Math.min(5, Math.floor((ty1 - ty0) / 2) - 1)), ww = hh + 1;
+    const left = Math.round(cx - ww / 2), tip = k === 0 ? left + ww : left, base = k === 0 ? left : left + ww, d = tip > base ? -1 : 1;
+    const put = (x, y) => { const i = y * w + x; if (lab[i] === 3) px[i] = lash; }; // 髪の上には描かない
+    for (let s = 0; s <= hh; s++) { const x = Math.round(base + (tip - base) * s / hh); for (const yy of [Math.round(cy) - hh + s, Math.round(cy) + hh - s]) { put(x, yy); put(x + d, yy); } }
+  });
+};
 // 指数的な追従（フレームレート非依存）
 G.damp = (a, b, rate, dt) => b + (a - b) * Math.exp(-rate * dt);
 
