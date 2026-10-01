@@ -66,7 +66,7 @@
         <div class="small" style="margin-top:6px">キャラの交代はホームでだけできます。レベル・経験値・技・装備の設定はキャラごとに保存され、所持品はみんなで共有します。</div></div>
       <div class="col scroll" style="flex:1;min-width:0">
         <div class="row" style="justify-content:space-between"><div class="h" style="font-size:16px;color:${C.col}">${esc(own || selC === 'hero' ? C.n : '？？？')}</div>
-          ${canSwitch ? '<button id="chSwitch" class="primary">このキャラで出撃する</button>' : selC === S.cur ? '<span class="eqtag">出撃中</span>' : own ? '<span class="small">探索中は交代できません</span>' : ''}</div>
+          ${canSwitch ? '<button id="chSwitch" class="primary">このキャラで出撃する</button>' : selC === S.cur ? '<span class="eqtag">出撃中</span>' : own ? '<span class="small">探索中は交代できません</span>' : '<button id="chGacha" class="gachaBtn">ガチャで仲間にする</button>'}</div>
         ${C.gacha ? `<img class="chArt" src="${ART(selC)}" alt="" style="${own ? '' : 'filter:brightness(0) opacity(.5)'}">` : ''}
         <div class="small">${esc(C.desc)}　属性：${esc(C.el)}${C.ranged ? '（遠距離攻撃）' : ''}</div>
         <div class="small">能力の倍率：HP ${pct(base.hp)}　攻撃力 ${pct(base.atk)}　防御力 ${pct(base.def)}　攻撃速度 ${pct(base.aspd)}${base.crit ? '　会心率 +' + Math.round(base.crit * 100) + '%' : ''}${base.critd ? '　会心威力 +' + Math.round(base.critd * 100) + '%' : ''}</div>
@@ -75,7 +75,11 @@
         ${C.gacha ? `<div class="h" style="margin-top:6px">限界突破（同じキャラを引くと★が上がる）　現在 ${own ? stars(st) : '未所持'}</div>${starRows.map(([n, t]) => `<div class="small" style="color:${own && st >= n ? '#7fe07a' : ''}">★${n}：${esc(t)}</div>`).join('')}<div class="small">★5のあとに引いた分は、育成素材「英雄の魂」${G.SOUL_PER_DUP}個に変わります。</div>` : '<div class="small" style="margin-top:6px">初期主人公は★1のまま育てます（限界突破はありません）。</div>'}
         ${selC === S.cur ? `<div class="row" style="margin-top:8px"><span class="small">英雄の魂 ${S.mats.soul}個</span><button id="soulUse" ${S.mats.soul ? '' : 'disabled'}>魂を1個使う（経験値を得る）</button></div>` : ''}
       </div>`;
-    b.querySelectorAll('.chCard').forEach(el => el.onclick = () => { selC = el.dataset.c; ui.render(); });
+    b.querySelectorAll('.chCard').forEach(el => el.onclick = () => {
+      selC = el.dataset.c; ui.render();
+      if (G.TOUCH || innerWidth <= 760) { const d = $('mBody').querySelector('.col.scroll'); if (d) d.scrollIntoView({ behavior: 'smooth', block: 'start' }); } // スマホは詳しい説明が下にあるので、そこまで動かす
+    });
+    if ($('chGacha')) $('chGacha').onclick = () => ui.open('gacha');
     if ($('chSwitch')) $('chSwitch').onclick = () => { const err = G.switchChar(selC); ui.toast(err || G.CHARS[selC].n + ' で出撃します'); ui.render(); ui.refreshHome(); };
     if ($('soulUse')) $('soulUse').onclick = () => { if (G.useSoul(1)) ui.toast('英雄の魂を使いました'); ui.render(); };
   };
@@ -88,14 +92,15 @@
     const urNote = prio
       ? `<b style="color:#ffb0f0">まだ持っていないキャラが優先！</b> URが出た時は ${urPool.map(c => esc(G.CHARS[c].n)).join('・')} から${urPool.length > 1 ? '等しい確率で' : '必ず'}出ます。1人あたり 約${urEach}%`
       : `URが出た時は${allUR.length}人から等しい確率。1人あたり 約${urEach}%`;
-    const btn = (n, cost) => `<button class="gBig ${S.coins >= cost && home ? 'primary' : ''}" data-pull="${n}" ${S.coins >= cost && home ? '' : 'disabled'}>${n === 1 ? '単発' : '10連'}<br><span class="small">${cost.toLocaleString()}枚</span></button>`;
+    // コインが足りない時は「あと何枚」かを出す
+    const btn = (n, cost) => `<button class="gBig ${S.coins >= cost && home ? 'primary' : ''}" data-pull="${n}" ${S.coins >= cost && home ? '' : 'disabled'}>${n === 1 ? '単発' : '10連'}<br><span class="small">${cost.toLocaleString()}枚</span>${S.coins < cost ? `<br><span class="gShort">あと${(cost - S.coins).toLocaleString()}枚</span>` : ''}</button>`;
     b.innerHTML = `<div class="col scroll" style="flex:1;min-width:0">
       <div class="gHead"><div class="gTitle">英雄召喚ガチャ</div>
         <div class="gArts">${G.CHAR_ORDER.filter(c => G.CHARS[c].gacha).map(c => `<img src="${ART(c)}" alt="">`).join('')}</div></div>
       <div class="row" style="justify-content:space-between;margin-top:6px"><div><div class="h">所持コイン <span style="font-size:20px;color:#ffe9a0">${S.coins.toLocaleString()}</span> 枚</div>
         <div class="small">UR確定まで あと <b style="color:#ffb0f0">${left}</b> 回（${GC.pity}回でUR確定。単発・10連共通）</div></div>
         <div class="row">${btn(1, GC.single)}${btn(10, GC.ten)}</div></div>
-      ${home ? '' : '<div class="small" style="color:#ff9a7a">ガチャはホームで引けます（探索から戻ってから）</div>'}
+      ${home ? '' : '<div class="row" style="align-items:center;margin-top:4px"><span class="small" style="color:#ff9a7a">ガチャはホームで引けます</span><button id="gRet">⌂ 帰還してガチャへ</button></div>'}
       <div class="small">所持品 ${S.items.length}/${G.INV_CAP}　自動分解 ${S.autoDis.on ? G.RARITY[S.autoDis.maxRar].n + ' 以下' : 'OFF'}　強化素材 ${S.mats.forge.toLocaleString()}　英雄の魂 ${S.mats.soul}</div>
       <div class="h" style="margin-top:8px">排出内容と確率</div>
       <table class="rates"><tr><th>レア度</th><th>内容</th><th>確率</th></tr>
@@ -107,6 +112,7 @@
       ${S.gachaLast ? '<div class="row" style="margin-top:8px"><button id="gLast">前回の結果を見る</button></div>' : ''}
     </div>`;
     b.querySelectorAll('[data-pull]').forEach(el => el.onclick = () => pull(+el.dataset.pull));
+    if ($('gRet')) $('gRet').onclick = () => { ui.close(); G.afterHome = 'gacha'; G.retreat(); }; // ホームに着いたらガチャ画面を開く
     if ($('gLast')) $('gLast').onclick = () => { ui.close(); showResults(G.S.gachaLast); };
   };
   let busy = false;

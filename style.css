@@ -182,7 +182,8 @@ body.titleMode #hud{visibility:hidden}
 .chArt{max-height:260px;max-width:100%;object-fit:contain;align-self:center;filter:drop-shadow(0 6px 14px rgba(0,0,0,.6))}
 /* ---------- ガチャ画面 ---------- */
 .gHead{position:relative;border:2px solid var(--line2);border-radius:5px;overflow:hidden;background:radial-gradient(ellipse at 50% 120%,#5a2a7a,#1a1024 70%);min-height:150px}
-.gTitle{position:absolute;left:12px;top:8px;z-index:2;font-size:24px;letter-spacing:4px;color:#fff6de;text-shadow:0 3px 0 #6a1d57,0 0 18px rgba(255,140,220,.6)}
+.gTitle{position:absolute;left:0;top:0;right:0;z-index:2;padding:6px 12px 14px;font-size:24px;letter-spacing:4px;color:#fff6de;text-shadow:0 3px 0 #6a1d57,0 0 18px rgba(255,140,220,.6),2px 0 0 #3a0d30,-2px 0 0 #3a0d30;background:linear-gradient(rgba(20,8,30,.85),transparent)} /* 絵と重なっても読めるように */
+.gShort{font-size:11px;color:#ffb0a0}
 .gArts{display:flex;justify-content:center;align-items:flex-end;gap:0;height:190px}
 .gArts img{height:100%;width:auto;max-width:34%;object-fit:cover;object-position:top;margin:0 -12px;filter:drop-shadow(0 0 10px rgba(0,0,0,.6))}
 .gBig{min-width:96px;padding:6px 10px;font-size:16px;line-height:1.2}
@@ -307,6 +308,63 @@ body.homeMode canvas#cv{filter:blur(2.5px) brightness(.7) saturate(.9);transitio
 @keyframes hubHop{35%{transform:translateY(-18px)}100%{transform:none}}
 .hubView{position:absolute;right:4%;bottom:6%;z-index:2;padding:6px 14px;border-radius:18px;font-size:13px;background:rgba(10,8,18,.85);border:2px solid var(--gold);color:var(--gold)}
 .hubView::before{content:'⇄ '}
+/* ---------- 遊びやすさの改善（ポップアップ・結果・警告など） ---------- */
+#uxPop{position:fixed;inset:0;z-index:29;background:rgba(4,3,8,.66);display:flex;align-items:center;justify-content:center;padding:calc(10px + env(safe-area-inset-top)) 10px calc(10px + env(safe-area-inset-bottom));animation:uxIn .18s ease-out}
+#uxPop.hidden{display:none}
+@keyframes uxIn{from{opacity:0}}
+#uxPop .uxBox{width:min(520px,100%);max-height:100%;display:flex;flex-direction:column;padding:0;overflow:hidden;background:linear-gradient(#1d1729,#120f19);animation:uxPopIn .3s cubic-bezier(.2,1.5,.4,1)}
+@keyframes uxPopIn{from{transform:scale(.85);opacity:0}}
+#uxPop .uxHead{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:2px solid var(--line);background:linear-gradient(90deg,rgba(255,216,77,.18),transparent)}
+#uxPop .uxTitle{font-size:20px;color:var(--gold);letter-spacing:.15em;text-shadow:0 2px 0 #000}
+#uxPop .uxAuto{margin-left:auto;margin-right:10px;font-size:11px;color:#a99fc0}
+#uxPop .uxBody{overflow-y:auto;padding:12px 14px 14px;-webkit-overflow-scrolling:touch}
+#uxPop .lbBtn{display:flex;gap:8px;justify-content:center;align-items:center;flex-wrap:wrap;margin-top:14px}
+#uxPop button.big{font-size:17px;padding:10px 22px}
+.uxMis{display:flex;align-items:center;gap:10px;padding:10px;margin-top:8px;border:2px solid var(--line);border-radius:6px;background:rgba(255,255,255,.03)}
+.uxMis.done{border-color:var(--gold);box-shadow:0 0 10px rgba(242,193,78,.35)}
+.uxMis.got{opacity:.5}
+.uxMis .umL{flex:1;min-width:0}.uxMis .umN{font-size:15px}
+.uxMis .umR{flex:none;text-align:center;min-width:70px}
+.uxMis .dmBar{height:7px;margin:5px 0 2px;background:#0c0a12;border-radius:4px;overflow:hidden}.uxMis .dmBar i{display:block;height:100%;background:linear-gradient(90deg,#f2c14e,#ffe9a0)}
+.lbHead{text-align:center;font-size:18px}.lbHead b{font-size:28px;color:var(--gold)}
+.lbDays{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:10px}
+.lbD{display:flex;flex-direction:column;align-items:center;gap:2px;padding:6px 2px;border-radius:6px;border:2px solid var(--line);background:rgba(255,255,255,.04);font-size:13px;position:relative}
+.lbD .lbN{font-size:11px;color:#a99fc0}.lbD .pc{display:inline-block;width:18px;height:18px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#fff3a0,#d89a20);box-shadow:inset 0 0 0 2px #a86a10}
+.lbD.big .pc{width:24px;height:24px}.lbD.big b{font-size:18px;color:var(--gold)}
+.lbD.today{border-color:var(--gold);box-shadow:0 0 12px rgba(242,193,78,.6);animation:nwPulse 1.2s ease-in-out infinite}
+.lbD.got{opacity:.55}.lbD.got::after{content:'済';position:absolute;right:4px;top:2px;color:#ff6a7a;font-size:13px;transform:rotate(-12deg)}
+.lbD.big{grid-column:span 2;background:linear-gradient(135deg,rgba(255,216,77,.2),rgba(255,120,200,.15))}
+.uxTips .tp{display:flex;gap:10px;align-items:flex-start;margin-top:10px}
+.uxTips .tp > b{flex:none;width:28px;height:28px;border-radius:50%;background:var(--gold);color:#111;display:flex;align-items:center;justify-content:center;font-size:16px}
+.uxTips .tpT{font-size:15px;margin-bottom:2px}
+#uxPop.result .uxTitle{color:#9fe0ff}#uxPop.dead .uxTitle{color:#ff8a8a}
+.rsRec{text-align:center;font-size:22px;color:var(--gold);text-shadow:0 0 12px rgba(255,216,77,.8);animation:nwPulse 1s ease-in-out infinite;margin-bottom:4px}
+.rsMsg{text-align:center;margin-bottom:8px}
+.rsGrid{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.rsGrid > div{display:flex;justify-content:space-between;align-items:baseline;padding:6px 10px;border-radius:6px;background:rgba(255,255,255,.05)}
+.rsGrid span{font-size:12px;color:#a99fc0}.rsGrid b{font-size:18px}
+.miStar{font-size:24px;color:#ffe08a;text-shadow:0 2px 0 #000}
+/* 所持品がいっぱい */
+#menu button.full,.hubM.full{border-color:#ff6a5a!important;color:#ffb0a8}
+#menu button.full::before{content:'満';position:absolute;top:-8px;left:-6px;padding:0 3px;border-radius:6px;background:#e04a3a;color:#fff;font-size:10px;line-height:14px;box-shadow:0 0 0 2px #000}
+/* HPが少ない時：画面のふちが赤く脈打つ */
+#lowHp{position:fixed;inset:0;pointer-events:none;z-index:4;opacity:0;transition:opacity .3s;box-shadow:inset 0 0 min(14vw,60px) min(2vw,10px) rgba(255,30,40,.5)}
+#lowHp.on{opacity:1;animation:lowHp .9s ease-in-out infinite}
+@keyframes lowHp{50%{opacity:.45}}
+/* 必殺技ゲージ：満タンで光る */
+.ultbar{height:12px}
+#ultTxt{font-size:10px;line-height:10px}
+#ultBar.full{box-shadow:0 0 10px #ff9af0,0 0 0 1px #ffd0f8}
+#ultBar.full #ultFill{animation:ultGlow .6s ease-in-out infinite alternate}
+@keyframes ultGlow{to{filter:brightness(1.5)}}
+/* 自動出撃までの残り時間：出撃ボタンの下のゲージ */
+.hubGo{position:relative;overflow:hidden}
+.hubGo.auto::after{content:'';position:absolute;left:0;bottom:0;height:4px;width:calc(var(--p,0) * 100%);background:linear-gradient(90deg,#fff6c0,#ffd84d);box-shadow:0 0 8px #ffd84d}
+/* ボタンを押した手ごたえ */
+button:active:not(:disabled){transform:translateY(1px) scale(.97);filter:brightness(1.15)}
+/* ミニマップ：タップで拡大 */
+#miniWrap{cursor:pointer;transition:transform .2s;pointer-events:auto}
+#miniWrap.big{transform:scale(2.2);transform-origin:100% 0;z-index:8}
 /* ---------- お知らせ ---------- */
 .newsBtn{position:relative}
 .newsBtn.badge::after{content:attr(data-n);position:absolute;top:-8px;right:-8px;padding:1px 5px;border-radius:8px;background:#ff3d5a;color:#fff;font-size:10px;line-height:14px;box-shadow:0 0 0 2px #000;animation:nwPulse 1.2s ease-in-out infinite}
@@ -320,6 +378,7 @@ body.homeMode canvas#cv{filter:blur(2.5px) brightness(.7) saturate(.9);transitio
 #newsWin .nwItem.new{border-color:color-mix(in srgb,var(--gold) 60%,transparent)}
 #newsWin .nwRow{display:flex;align-items:center;gap:8px;font-size:12px}
 #newsWin .nwTag{padding:1px 8px;border-radius:10px;font-size:11px;color:#111}
+#newsWin .nwTag.chg{background:#b9f28a}
 #newsWin .nwTag.up{background:#ffd84d}#newsWin .nwTag.fix{background:#7fd0ff}#newsWin .nwTag.info{background:#ff9ad5}
 #newsWin .nwDate{color:#a99fc0}
 #newsWin .nwNew{color:#ff5a74;font-weight:bold;animation:nwPulse 1.2s ease-in-out infinite}
@@ -378,7 +437,10 @@ body.homeMode canvas#cv{filter:blur(2.5px) brightness(.7) saturate(.9);transitio
   .hubPlayer{padding-right:10px}.hpLv{width:38px;height:38px}.hpLv b{font-size:16px}
   .pill{font-size:12px;padding:2px 8px 2px 3px}.pill b{min-width:0}
   .hubLeft{grid-column:1/-1;grid-row:2;flex-direction:row;overflow-x:auto;overflow-y:hidden;max-height:none}
-  .hubBanner{width:62vw;height:96px}.hubCard{width:72vw;max-height:150px;overflow-y:auto}
+  .hubBanner{width:100%;height:84px}.hubCard{width:72vw;max-height:150px;overflow-y:auto}
+  #hbLogin,#hbDaily{display:none} /* スマホではポップアップ（ログインボーナス）と右のメニュー（ミッション）から */
+  .bnPrice{display:none}
+  .hubM[data-p="mission"] > span:last-child{font-size:9.5px;letter-spacing:-.5px;white-space:nowrap}
   .hubStage{grid-column:1;grid-row:3}
   .hubChar img{max-height:52vh}.hubChar canvas{height:min(42vh,360px)}
   .hubMenu{grid-column:2;grid-row:3;gap:6px}.hubM{width:58px;font-size:11px}.hubM .mi{width:28px;height:28px}
@@ -487,9 +549,13 @@ body.touch #title .tNote{display:none}
   .sk{width:46px;height:46px}.sk canvas{width:36px;height:36px}
   #menu{left:calc(8px + env(safe-area-inset-left));right:calc(8px + env(safe-area-inset-right));justify-content:space-between}
   #menu button{padding:6px 2px;font-size:12px;flex:1;min-width:0;white-space:nowrap}
+  #spdBtn .lbl{display:none} #spdBtn::before{content:'≫'}
+  .whead{gap:6px}
   #callout{top:24%}
   #skills{bottom:calc(64px + env(safe-area-inset-bottom))}
-  #combo{left:14px;top:calc(120px + env(safe-area-inset-top))} #combo .cn{font-size:32px}
+  #combo{left:auto;right:14px;top:calc(138px + env(safe-area-inset-top));text-align:right} #combo .cn{font-size:32px} /* 状態の枠と重ならないように右（ミニマップの下）へ */
+  #loot{top:calc(172px + env(safe-area-inset-top))!important}
+  #miniWrap.big{transform:scale(1.8)}
   #banner .b1{font-size:28px;letter-spacing:3px} #banner .b2{font-size:13px}
   #toast{font-size:16px;white-space:normal;width:90vw;text-align:center}
   #bossBar{top:calc(128px + env(safe-area-inset-top));width:80vw}
@@ -501,7 +567,7 @@ body.touch #title .tNote{display:none}
   /* 画面（装備・技・所持品・設定）は全画面にして縦に並べ、全体をスクロール */
   .win{width:100vw;height:100%;border-radius:0;border-width:0;padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom)}
   .whead{padding:6px 8px}
-  .tabs{flex-wrap:wrap;gap:4px} .tabs button{padding:5px 8px}
+  .tabs{flex-wrap:nowrap;gap:4px;overflow-x:auto;scrollbar-width:none;flex:1;min-width:0} .tabs::-webkit-scrollbar{display:none} .tabs button{padding:5px 8px;flex:none} /* タブは1列（横にスクロール） */
   #mClose{min-width:44px}
   #mBody{flex-direction:column;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:8px}
   #mBody>.col{width:auto!important;flex:none!important;max-width:none!important}

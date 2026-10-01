@@ -34,7 +34,7 @@
         <div class="hubCard" id="hbDaily"></div>
       </div>
       <div class="hubMenu" id="hbMenu">
-        ${[['chara', 'キャラ'], ['equip', '装備'], ['skill', '技'], ['inv', '所持品'], ['gacha', 'ガチャ']].map(([k, n]) => `<button class="hubM" data-p="${k}"><span class="mi" data-mi="${k}"></span><span>${n}</span></button>`).join('')}
+        ${[['chara', 'キャラ'], ['equip', '装備'], ['skill', '技'], ['inv', '所持品'], ['mission', 'ミッション'], ['gacha', 'ガチャ']].map(([k, n]) => `<button class="hubM" data-p="${k}"><span class="mi" data-mi="${k}"></span><span>${n}</span></button>`).join('')}
       </div>
       <div class="hubBottom">
         <div class="hubLast" id="hbLast"></div>
@@ -47,7 +47,7 @@
     document.body.appendChild(el);
     $('hbSet').onclick = () => ui.open('set');
     $('hbGacha').onclick = () => ui.open('gacha');
-    el.querySelectorAll('.hubM').forEach(b => b.onclick = () => ui.open(b.dataset.p));
+    el.querySelectorAll('.hubM').forEach(b => b.onclick = () => b.dataset.p === 'mission' ? G.openMissions && G.openMissions() : ui.open(b.dataset.p));
     $('hbGo').onclick = () => G.depart(!!G.resumeRun);
     $('hbGo1').onclick = () => G.depart(false);
     $('hbWait').onclick = () => { G.S.settings.waitHome = !G.S.settings.waitHome; ui.refreshHome(); G.save(); refresh(); };
@@ -114,7 +114,7 @@
       $('hbChar').style.setProperty('--cc', C.col); $('hbChar').classList.toggle('sd', !art);
       $('hbView').classList.toggle('hidden', !C.gacha); $('hbView').textContent = art ? 'SD' : 'イラスト';
     }
-    $('hbPity').textContent = 'UR確定まで あと' + (G.GACHA.pity - S.pity) + '回　単発 ' + G.GACHA.single + '枚 / 10連 ' + G.GACHA.ten.toLocaleString() + '枚';
+    $('hbPity').innerHTML = 'UR確定まで あと<b>' + (G.GACHA.pity - S.pity) + '</b>回<span class="bnPrice">　単発 ' + G.GACHA.single + '枚 / 10連 ' + G.GACHA.ten.toLocaleString() + '枚</span>';
     // ログインボーナス
     const lg = $('hbLogin');
     if (G.loginReady()) {
@@ -135,7 +135,7 @@
     const rr = G.resumeRun;
     $('hbGoT').textContent = rr ? '続きから出撃' : '出撃';
     const auto = !S.settings.waitHome && !G.manualStart && !G.trans ? `　${Math.max(0, G.homeT).toFixed(1)}秒後に自動出撃` : '';
-    $('hbGoS').textContent = (rr ? 'B' + rr.floor + 'F から' : 'B1F から') + '　最深 B' + S.maxFloor + 'F' + auto;
+    $('hbGoS').textContent = (rr ? 'B' + rr.floor + 'F から' : 'B1F から') + (S.maxFloor > 0 ? '　最深 B' + S.maxFloor + 'F' : '') + auto;
     $('hbGo1').classList.toggle('hidden', !rr);
     $('hbWait').textContent = '自動出撃 ' + (S.settings.waitHome ? 'OFF' : 'ON'); $('hbWait').classList.toggle('on', !S.settings.waitHome);
     const lr = S.lastRun;

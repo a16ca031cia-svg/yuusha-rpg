@@ -4,7 +4,7 @@
 // まだ読んでいないお知らせがあればボタンに NEW を付け、ホームに来た時に一度だけ自動で開く。
 (function () {
   const ui = G.ui, $ = id => document.getElementById(id), esc = s => ui.esc(s);
-  const MAX = 20, TAG = { 'アップデート': 'up', '不具合修正': 'fix', 'お知らせ': 'info' };
+  const MAX = 20, TAG = { 'アップデート': 'up', '不具合修正': 'fix', 'お知らせ': 'info', '仕様変更': 'chg' };
   G.NEWS = [];
   let autoShown = false;
 
@@ -54,7 +54,8 @@
   ui.update = function (dt) {
     update0(dt);
     const S = G.S; if (!S || autoShown) return;
-    if (S.mode === 'home' && !ui.titleOn && !G.trans && unread() > 0 && $('modal').classList.contains('hidden') && $('gfx').classList.contains('hidden')) { autoShown = true; open(); }
+    // 自動出撃で放置している時は開かない（NEWの印だけ）。起動直後など自分で操作している時に開く
+    if (S.mode === 'home' && !ui.titleOn && !G.trans && (G.manualStart || S.settings.waitHome) && unread() > 0 && $('modal').classList.contains('hidden') && $('gfx').classList.contains('hidden')) { autoShown = true; open(); }
   };
   build();
   G.loadNews();

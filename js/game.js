@@ -204,7 +204,9 @@
   // ------------------------------------------------------------ 地形判定
   const tileOf = (x, y) => Math.floor(y / T) * W.D.W + Math.floor(x / T);
   G.tileOf = (x, y) => tileOf(x, y);
-  const seen = e => !W || W.home || !!W.vis[tileOf(e.x, e.y)]; // 敵が今の視界の中にいるか
+  // 敵が今の画面に映っているか（スマホの縦画面は見える範囲が狭いので、画面の外の敵は倒さない）。足元が基準なので上は体の分だけ余裕を取る
+  const onScreen = e => { const c = G.cam; if (!c || !G.VW) return true; const dx = e.x - c.x, dy = e.y - c.y; return Math.abs(dx) < G.VW / 2 - 6 && dy > -G.VH / 2 + 16 && dy < G.VH / 2 - 4; };
+  const seen = e => !W || W.home || (!!W.vis[tileOf(e.x, e.y)] && onScreen(e)); // 敵が今の視界の中・画面の中にいるか
   G.enemySeen = seen;
   function solid(px, py) {
     const D = W.D, tx = Math.floor(px / T), ty = Math.floor(py / T);
@@ -1841,7 +1843,7 @@
     H.vx = H.vy = 0; H.face = 1; H.flash -= dt;
     updCape(dt);
     if (R() < dt * 14) G.part(W.fire.x + (R() - .5) * 6, W.fire.y - 4, (R() - .5) * 8, -25 - R() * 25, .8 + R() * .5, R() < .3 ? '#ffd35a' : '#ff9b2f', 1, -10, .5);
-    if (!G.trans && !S.settings.waitHome && !G.manualStart && !G.paused && !(G.ui && G.ui.titleOn)) {
+    if (!G.trans && !S.settings.waitHome && !G.manualStart && !G.paused && !G.uxHold && !(G.ui && G.ui.titleOn)) { // お知らせ・結果などを開いている間は自動出撃を待つ
       G.homeT -= dt;
       if (G.homeT <= 0) G.depart();
     }

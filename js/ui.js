@@ -53,12 +53,12 @@
   // 音が鳴っている間は案内を隠し、止まったら（スマホでアプリを切り替えた後など）もう一度出す
   ui.audioReady = () => { const e = document.getElementById('soundHint'); if (e) e.classList.add('hidden'); };
   ui.audioLost = () => { const e = document.getElementById('soundHint'); if (e) e.classList.remove('hidden'); };
-  ui.refreshSpeed = () => { $('spdBtn').textContent = '×' + G.S.settings.speed; };
+  ui.refreshSpeed = () => { $('spdBtn').innerHTML = '<span class="lbl">速さ</span>×' + G.S.settings.speed; }; // 何の「×」か分かるように（スマホの狭い画面では「速さ」を省く）
   // 画面下の技アイコン：覚えた技をすべて並べる（OFFにした技は暗く）。まだ何も覚えていなければ案内を1つ
   ui.refreshSkills = function () {
     const S = G.S, box = $('skills'); box.innerHTML = '';
     const ids = G.charSkills().filter(id => S.learned.includes(id));
-    if (!ids.length) { const d = document.createElement('div'); d.className = 'sk empty'; d.innerHTML = '<div class="nm">未習得</div>'; d.title = 'レベルが上がると技を覚えます'; d.onclick = () => ui.open('skill'); box.appendChild(d); return; }
+    if (!ids.length) { const d = document.createElement('div'), nl = Math.min(...G.charSkills().map(id => G.SKILLS[id].lv || 1)); d.className = 'sk empty'; d.innerHTML = `<div class="nm">Lv${nl}で<br>技を習得</div>`; d.title = 'レベルが上がると技を覚えます'; d.onclick = () => ui.open('skill'); box.appendChild(d); return; }
     for (const id of ids) {
       const d = document.createElement('div'), off = !!(S.skillOff || {})[id], I = G.skillInfo(id);
       d.className = 'sk' + (off ? ' empty' : '') + (I.stage ? ' skstage' + I.stage : ''); d.dataset.id = id;
