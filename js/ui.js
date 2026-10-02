@@ -334,12 +334,14 @@
   }
   function itemCard(it, extra) {
     if (!it) return `<div class="card"><div class="small">装備なし</div></div>`;
-    return `<div class="card" style="border-color:${rc(it.rar)}66">
+    const U = it.uq && G.UNIQUE[it.uq];
+    return `<div class="card ${U ? 'uqCard' : ''}" style="border-color:${U ? U.col : rc(it.rar) + '66'}">
       <div class="row"><img class="ic" src="${G.iconURL(it.slot)}" style="border-color:${rc(it.rar)}"><div>
-      <div class="ttl" style="color:${rc(it.rar)}">${esc(it.name)} ${it.fav ? '<span class="star on">★</span>' : ''}</div>
+      <div class="ttl" style="color:${U ? U.col : rc(it.rar)}">${it.lock ? '🔒' : ''}${esc(it.name)} ${it.fav ? '<span class="star on">★</span>' : ''}</div>
       <div class="meta">${G.RARITY[it.rar].n}・${G.SLOT_N[it.slot]}・B${it.f}F産・評価 ${G.itemScore(it)}・売値 ${G.itemValue(it)}G</div></div></div>
       <div class="st">${itemStats(it)}</div>
       <div class="afl">${it.af.map(a => `<div><span class="lvtag">${G.AFX[a.k].n} Lv${a.lv}</span> <span class="small">${esc(G.AFX[a.k].d(a.lv))}</span></div>`).join('') || '<span class="small">付与効果なし</span>'}</div>
+      ${U ? `<div class="uqBox" style="--c:${U.col}"><b>◆ 固有効果</b>　${esc(U.d)}<div class="small">向いている構成：${esc(U.fit)}</div></div>` : ''}
       ${it.set ? setBox(it.set) : ''}
       ${extra || ''}</div>`;
   }
@@ -404,7 +406,7 @@
         <div class="h">総合力 <span style="font-size:18px;color:#ffe9a0">${G.fmtBig(G.powerOf(st))}</span></div>
         <div class="h">付与効果（実効レベル＝装着中の合算）</div>${effList(st)}${activeSets(st)}
         <div class="h" style="margin-top:8px">現在の${G.SLOT_N[sel.slot]}</div>
-        ${itemCard(curIt, curIt ? `<div class="btnrow" style="margin-top:6px"><button data-act="lock" data-id="${curIt.id}" class="${curIt.lock ? 'on' : ''}">${curIt.lock ? '🔒 固定中' : '🔓 固定する'}</button><button data-act="fav" data-id="${curIt.id}">${curIt.fav ? '★ お気に入り解除' : '☆ お気に入り'}</button><button data-act="unequip">外す</button></div>` : '')}
+        ${itemCard(curIt, curIt ? `<div class="btnrow" style="margin-top:6px"><button data-act="lock" data-id="${curIt.id}" class="${curIt.lock ? 'on' : ''}">${curIt.lock ? '🔒 固定中' : '🔓 固定する'}</button><button data-act="fav" data-id="${curIt.id}">${curIt.fav ? '★ お気に入り解除' : '☆ お気に入り'}</button>${curIt.af.length ? `<button data-act="reroll" data-id="${curIt.id}">付与を変える</button>` : ''}<button data-act="unequip">外す</button></div>` : '')}
       </div>
       <div class="col eqC" style="flex:1;min-width:0">
         <div class="row" style="justify-content:space-between"><span class="h">${G.SLOT_N[type]}の候補（${cands.length}件）</span><span class="row"><select id="eqSort">${[['rar', 'レア度順'], ['score', '評価順'], ['new', '新しい順']].map(([k, n]) => `<option value="${k}" ${sel.eqSort === k ? 'selected' : ''}>${n}</option>`).join('')}</select>${recId ? `<button id="recOne" class="primary">おすすめを装備</button>` : ''}</span></div>
@@ -434,14 +436,14 @@
     const better = cmp != null && G.itemScore(it) > cmp ? '<span class="up" title="評価値が現在の装備より高い">▲</span>' : '';
     return `<div class="it ${selected ? 'sel' : ''}" data-id="${it.id}">
       <img class="ic" src="${G.iconURL(it.slot)}" style="border-color:${rc(it.rar)}">
-      <div class="grow"><div class="nm" style="color:${rc(it.rar)}">${better}${esc(it.name)} ${recommended ? '<span class="rectag">おすすめ</span>' : ''} ${it.nw ? '<span class="newtag">NEW</span>' : ''} ${eq ? `<span class="eqtag">${G.SLOT_N[eq]}装備中</span>` : ''}</div>
+      <div class="grow"><div class="nm" style="color:${it.uq ? G.UNIQUE[it.uq].col : rc(it.rar)}">${better}${it.lock ? '🔒' : ''}${esc(it.name)}${it.uq ? ' <span class="uqtag">固有</span>' : ''} ${recommended ? '<span class="rectag">おすすめ</span>' : ''} ${it.nw ? '<span class="newtag">NEW</span>' : ''} ${eq ? `<span class="eqtag">${G.SLOT_N[eq]}装備中</span>` : ''}</div>
       <div class="af">${itemStats(it)}${it.af.length ? '　|　' + it.af.map(a => G.AFX[a.k].n + ' Lv' + a.lv).join(' / ') : ''}</div></div>
       <span class="small" style="text-align:right;white-space:nowrap"><span style="color:${rc(it.rar)}">${G.RARITY[it.rar].n}</span><br>B${it.f}F</span><span class="star ${it.fav ? 'on' : ''}" data-fav="${it.id}" title="お気に入り（分解から保護）">★</span></div>`;
   }
   // 分解・強化のボタン（どれかのキャラが装備中・お気に入りは分解できない）
   function disBtns(it) {
     const lock = it.fav || G.usedByAny(it.id), c = G.enhCost(it), mx = (it.enh || 0) >= G.ENH_MAX;
-    return `<button data-act="enh" data-id="${it.id}" ${mx || G.S.mats.forge < c ? 'disabled' : ''} title="基礎性能 +10%">${mx ? '強化 最大' : `強化 +${(it.enh || 0) + 1}（素材 ${c}）`}</button><button data-act="sell1" data-id="${it.id}" ${lock ? 'disabled' : ''}>分解 +${G.disValue(it)}</button>`;
+    return `<button data-act="enh" data-id="${it.id}" ${mx || G.S.mats.forge < c ? 'disabled' : ''} title="基礎性能 +10%">${mx ? '強化 最大' : `強化 +${(it.enh || 0) + 1}（素材 ${c}）`}</button>${it.af.length ? `<button data-act="reroll" data-id="${it.id}" title="付与を1枠だけ別のものに変えます">付与を変える</button>` : ''}<button data-act="sell1" data-id="${it.id}" ${lock ? 'disabled' : ''}>分解 +${G.disValue(it)}</button>`;
   }
   ui.disBtns = disBtns;
   ui.itemRow = (...a) => itemRow(...a); ui.itemCard = (...a) => itemCard(...a); ui.esc = esc; ui.panel = () => panel;
@@ -451,6 +453,7 @@
       const a = el.dataset.act, id = +el.dataset.id;
       if (a === 'equip') { G.equipItem(sel.slot, id); sel.item = null; G.sfx('pickup', 1); }
       if (a === 'unequip') G.unequip(sel.slot);
+      if (a === 'reroll') { G.openReroll && G.openReroll(id); return; }
       if (a === 'fav') { const it = G.itemById(id); it.fav = !it.fav; G.save(); }
       if (a === 'lock') { const it = G.itemById(id); it.lock = !it.lock; if (it.lock) it.fav = true; ui.toast(it.lock ? '🔒 固定しました（自動装備で外しません・分解から保護）' : '固定を解除しました'); G.save(); } // 固定はお気に入り（分解から保護）も兼ねる
       if (a === 'sell1') { const r = G.dismantle([id]); if (r.n) ui.toast(`分解しました　強化素材 +${r.m}`); sel.item = null; G.save(); }

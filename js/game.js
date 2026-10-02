@@ -44,6 +44,7 @@
     let v = (s.atk || 0) * 3 + (s.def || 0) * 2.2 + (s.hp || 0) * .35 + (s.aspd || 0) * 120 + (s.mspd || 0) * 150 + (s.crit || 0) * 400;
     for (const a of it.af) v += a.lv * (6 + it.f * 1.2);
     if (it.set) v += 10 + it.f * 1.5; // セット装備は少し高く評価
+    if (it.uq) v += 40 + it.f * 2; // 固有効果の装備は高く評価
     return Math.round(v);
   };
   G.itemValue = it => Math.round((8 + it.f * 3) * (1 + it.rar * 1.3) * (1 + it.af.reduce((s, a) => s + a.lv, 0) * .12));
@@ -92,13 +93,43 @@
     it.name = itemName(it);
     return it;
   };
+  G.itemName = it => it.uq ? '【固有】' + G.UNIQUE[it.uq].n : itemName(it);
+  // 固有効果の装備：決まった部位で作り、その効果に合う付与を1つ必ず付ける（セットにはならない）
+  G.genUnique = function (f, rng, rar, key) {
+    rng = rng || G.rng; key = key || rng.pick(Object.keys(G.UNIQUE));
+    const U = G.UNIQUE[key], it = G.genItem(f, rng, { slot: U.slot, rar: Math.max(3, rar || 3) });
+    if (!it.af.some(a => a.k === U.af)) it.af[0] = { k: U.af, lv: Math.max(1, it.af[0] ? it.af[0].lv : 1) };
+    delete it.set; it.uq = key; it.name = G.itemName(it);
+    return it;
+  };
+  // 付与を1枠だけ変える。cat＝系統（G.AF_CAT）、pickKey＝確定で付けたい付与（素材6倍）。新しい付与を返すだけで、決めるのは applyReroll
+  G.rerollAffix = function (id, idx, cat, pickKey) {
+    sync();
+    const it = G.itemById(id); if (!it || !it.af[idx]) return { err: '付与がありません' };
+    if (it.uq && it.af[idx].k === G.UNIQUE[it.uq].af) return { err: '固有効果に必要な付与は変えられません' };
+    const cost = G.rerollCost(it) * (pickKey ? 6 : 1);
+    if (S.mats.forge < cost) return { err: '強化素材が足りません（必要 ' + cost + '）' };
+    const others = new Set(it.af.filter((a, i) => i !== idx).map(a => a.k));
+    let pool = G.AFFIX_POOL[it.slot].filter(k => !others.has(k) && k !== it.af[idx].k);
+    const C = G.AF_CAT[cat || 'any']; if (C && C.k) pool = pool.filter(k => C.k.includes(k));
+    if (pickKey) pool = pool.filter(k => k === pickKey);
+    if (!pool.length) return { err: 'この部位・系統で変えられる付与がありません' };
+    S.mats.forge -= cost;
+    const nu = { k: G.rng.pick(pool), lv: it.af[idx].lv };
+    G.save();
+    return { nu, old: it.af[idx], cost };
+  };
+  G.applyReroll = function (id, idx, nu) {
+    sync(); const it = G.itemById(id); if (!it) return;
+    it.af[idx] = nu; it.name = G.itemName(it); G.recalc(); G.save();
+  };
 
   // ------------------------------------------------------------ 能力値
   G.calcStats = function (equip, level) {
     const L = level || G.S.level;
     const st = { hp: 90 + 14 * (L - 1), atk: 9 + 2.2 * (L - 1), def: 2 + .9 * (L - 1), aspd: 1.9, mspd: 112, crit: .05, critd: 1.5 };
     let aspdPct = 0, mspdPct = 0;
-    const fx = {}, sets = {};
+    const fx = {}, sets = {}, uq = {};
     for (const s of G.SLOTS) {
       const id = equip[s]; if (id == null) continue;
       const it = G.itemById(id); if (!it) continue;
@@ -107,6 +138,7 @@
       aspdPct += b.aspd || 0; mspdPct += b.mspd || 0;
       for (const a of it.af) fx[a.k] = (fx[a.k] || 0) + a.lv; // 同じ効果のレベルは合算
       if (it.set) sets[it.set] = (sets[it.set] || 0) + 1;
+      if (it.uq) uq[it.uq] = true; // 固有効果
     }
     // セット効果：揃えた数に応じて付与効果のレベルを足し、割合の上昇はあとでまとめて掛ける
     const P = {};
@@ -144,7 +176,7 @@
     st.hp *= 1 + (P.hp || 0); st.atk *= 1 + (P.atk || 0); st.def *= 1 + (P.def || 0); st.aspd *= 1 + (P.aspd || 0); st.mspd *= 1 + (P.mspd || 0);
     st.crit = Math.min(.9, st.crit + (P.crit || 0)); st.critd += P.critd || 0; st.cdr = Math.min(.7, st.cdr + (P.cdr || 0)); st.spow += P.spow || 0; st.expMul += P.expMul || 0;
     st.maxHp = Math.round(st.hp); st.atk = Math.round(st.atk * 10) / 10; st.def = Math.round(st.def * 10) / 10;
-    st.fx = fx; st.sets = sets;
+    st.fx = fx; st.sets = sets; st.uq = uq;
     return st;
   };
   // 技の強さ（技レベルと進化段階から）：威力倍率・再使用時間・範囲・連撃数
@@ -595,6 +627,9 @@
   function heal(v, show) {
     if (H.dead || v <= 0) return;
     const before = H.hp;
+    // 固有効果「生命の護符」：満タンを超えた回復の半分をバリアに
+    const over = H.hp + v - H.st.maxHp;
+    if (over > 0 && H.st.uq && H.st.uq.overShield) { const cap = H.st.maxHp * .35, s0 = H.shield; H.shield = Math.min(cap, H.shield + over * .5); if (H.shield >= cap && s0 < cap) G.fxAdd({ k: 'shieldUp', dur: .5 }); }
     H.hp = Math.min(H.st.maxHp, H.hp + v);
     if (show && H.hp - before >= 1) G.num(H.x, H.y - 36, H.hp - before, 'heal', H);
   }
@@ -685,6 +720,17 @@
     // 必殺技ゲージ：攻撃・技の命中でたまる（必殺技そのものでは増えない）
     if ((o.src === 'atk' || o.src === 'skill') && !ult) H.ult = Math.min(G.ULT.max, (H.ult || 0) + G.ULT.perHit);
     if (G.bless && S.run) G.bless.onHit(e, dmg, o, crit); // 祝福：命中時の効果
+    // 固有効果「氷印の宝玉」：ボス・強敵に氷の印をためて、6つで破裂
+    if (H.st.uq && H.st.uq.iceMark && (e.boss || e.elite) && (o.src === 'atk' || o.src === 'skill') && e.hp > 0) {
+      e.iceMark = (e.iceMark || 0) + 1;
+      if (e.iceMark < 6) G.popText(e.x, e.y - (e.boss ? 52 : 30), '❄' + e.iceMark, '#bfeaff', 6);
+      else {
+        e.iceMark = 0;
+        G.fxAdd({ k: 'pillar', x: e.x, y: e.y, r: e.boss ? 16 : 11, h: e.boss ? 60 : 40, dur: .7 }); G.fxAdd({ k: 'ring', x: e.x, y: e.y, r: 40, col: '#bfeaff', dur: .5 });
+        G.sfx('freeze'); G.shake(3); G.light(e.x, e.y, 120, .5, '#bfeaff');
+        hitEnemy(e, H.st.atk * 6 * H.st.spow, { src: 'uq_mark', gen: 1, canCrit: true, ka: 0, kb: 0, noEl: true });
+      }
+    }
     if (e.hp <= 0 && !e.dead) { e.diedFrozen = e.frozen > 0; e.lastO = { src: o.src, gen: o.gen || 0, crit }; killEnemy(e); }
     return dmg;
   }
@@ -723,6 +769,12 @@
     }
     G.fxAdd({ k: 'bolt', pts, lv, dur: .32 + pts.length * .035, hop: .035, done: 0, dmg, src, gen: gen || 0, seed: R() * 1000 });
     G.sfx('zap');
+    // 固有効果「迅雷の剣」：連鎖する相手が足りなかった分だけ、雷が元の敵に戻って追加ダメージ
+    const left = n - (pts.length - 1);
+    if (H.st.uq && H.st.uq.thunderRet && left > 0 && !gen && !from.dead) {
+      const k = Math.min(3, left), x = from.x, y = from.y;
+      W.follows.push({ e: from, n: 0, t: .2, dmg: 0, x, y, ret: { dmg: dmg * .6 * k } });
+    }
   }
   G.chainLightning = (a, b, c, d, e, g) => { sync(); chainLightning(a, b, c, d, e, g); };
   G.healHero = v => { sync(); heal(v, true); };
@@ -757,7 +809,13 @@
     }
     if (e.elite && !e.boss && !e.guardian) G.ui.callout({ text: '強敵撃破!', sub: e.name || (e.d && e.d.n) || '', tone: 'orange', prio: 2, dur: 1.2, size: .9, flash: .25 });
     if (H.st.leech) heal(H.st.maxHp * H.st.leech, true);
-    if (H.st.boomLv && !e.exploded) { e.exploded = true; W.booms.push({ x: e.x, y: e.y - 4, t: .06, r: H.st.boomR, dmg: H.st.atk * H.st.boomDmg, lv: H.st.boomLv }); }
+    const wide = H.st.uq && H.st.uq.wideBoom; // 固有効果「拡散の火種」：爆発の範囲が広く、威力は控えめ
+    if (H.st.boomLv && !e.exploded) { e.exploded = true; W.booms.push({ x: e.x, y: e.y - 4, t: .06, r: H.st.boomR * (wide ? 1.75 : 1), dmg: H.st.atk * H.st.boomDmg * (wide ? .6 : 1), lv: H.st.boomLv }); }
+    // 固有効果「居合の鞘」：技で倒すと、その技の再使用時間が30%短くなる（1回の技で3回まで）
+    if (H.st.uq && H.st.uq.recastCd && e.lastO && e.lastO.src === 'skill' && H.act && H.act.sid && (H.cds[H.act.sid] || 0) > 0 && (H.act.cdCut || 0) < 3) {
+      H.act.cdCut = (H.act.cdCut || 0) + 1; H.cds[H.act.sid] *= .7;
+      G.popText(H.x, H.y - 40, '技 短縮', '#ffc0c0', 6);
+    }
     // ドロップ
     const luck = H.st.luck;
     // 報酬：装備は落とさず、ガチャコインを落とす（獲得した瞬間に所持数へ反映）
@@ -851,6 +909,11 @@
     coin: { n: 'コイン収集', d: '幸運・移動速度・経験値を重視' },
   };
   function policyScore(st, pol) {
+    // 固有効果は数値に表れないので、付けているだけ少し高く・方針に合うものはさらに高く
+    let um = 1; for (const k in st.uq || {}) um *= 1.12 + ((G.UNIQUE[k].pol || []).includes(pol) ? .15 : 0);
+    return policyBase(st, pol) * um;
+  }
+  function policyBase(st, pol) {
     const dps = st.atk * st.aspd * (1 + Math.min(.9, st.crit) * (st.critd - 1));
     const ehp = st.maxHp * (1 + st.def / 40) * (1 + (st.regen || 0) * 20 + (st.barrier || 0) * .5 + (st.leech || 0) * 3);
     const fx = st.fx, l = k => fx[k] || 0;
@@ -1016,8 +1079,9 @@
       } else {
         S.pity++;
         let rar = GC.equipRar[rr]; if (rr === 'SSR' && G.rng.next() < GC.ssrPlus) rar = 4;
-        const it = G.genItem(floor, G.rng, { rar });
-        if (S.autoDis.on && it.rar <= S.autoDis.maxRar) { // 自動分解：素材にして結果一覧に表示
+        // SSRは30%・SSR+は60%で固有効果の装備
+        const it = rar >= 3 && G.rng.next() < (rar === 4 ? .6 : .3) ? G.genUnique(floor, G.rng, rar) : G.genItem(floor, G.rng, { rar });
+        if (S.autoDis.on && it.rar <= S.autoDis.maxRar && !it.uq) { // 自動分解：素材にして結果一覧に表示（固有効果の装備は残す）
           const m = G.disValue(it); S.mats.forge += m;
           res.push({ t: 'eq', rr, it, dis: m });
         } else { G.addItemRaw(it); res.push({ t: 'eq', rr, it, dis: 0 }); }
@@ -1897,6 +1961,11 @@
     for (let i = W.follows.length - 1; i >= 0; i--) {
       const f = W.follows[i]; f.t -= dt;
       if (f.t > 0) continue;
+      if (f.ret) { // 迅雷の剣：戻ってきた雷
+        W.follows.splice(i, 1);
+        if (!f.e.dead) { G.fxAdd({ k: 'strike', x: f.e.x, y: f.e.y, dur: .35, seed: R() * 999 }); G.light(f.e.x, f.e.y, 60, .3, '#9fdcff'); G.sfx('zap'); hitEnemy(f.e, f.ret.dmg, { src: 'uq_ret', gen: 1, canCrit: true, ka: 0, kb: 0, noEl: true }); }
+        continue;
+      }
       let e = f.e;
       if (e.dead) { e = null; let bd = 40; for (const o of W.enemies) { if (o.dead || !seen(o)) continue; const d = G.dist(o.x, o.y, f.x, f.y); if (d < bd) { bd = d; e = o; } } }
       if (!e) { W.follows.splice(i, 1); continue; }

@@ -105,7 +105,7 @@
       <div class="h" style="margin-top:8px">排出内容と確率</div>
       <table class="rates"><tr><th>レア度</th><th>内容</th><th>確率</th></tr>
         <tr><td><span class="urtag">UR</span></td><td>キャラクター（${G.CHAR_ORDER.filter(c => G.CHARS[c].gacha).map(c => esc(G.CHARS[c].n)).join('・')}）<br><span class="small">${urNote}</span></td><td>1%</td></tr>
-        <tr><td style="color:${G.RARITY[3].c}">SSR</td><td>装備（まれにさらに強い SSR+）</td><td>4%</td></tr>
+        <tr><td style="color:${G.RARITY[3].c}">SSR</td><td>装備（まれにさらに強い SSR+）<br><span class="small">SSRの30%・SSR+の60%は、戦い方を変える<span class="uqtag">固有</span>効果の装備</span></td><td>4%</td></tr>
         <tr><td style="color:${G.RARITY[2].c}">SR</td><td>装備</td><td>15%</td></tr>
         <tr><td style="color:${G.RARITY[1].c}">R</td><td>装備</td><td>80%</td></tr></table>
       <div class="small" style="margin-top:4px">装備の性能は、引いた時点の最深到達階層（B${Math.max(1, S.maxFloor)}F）を基準に決まります。まだ持っていないキャラがいる間は、URはその中からだけ出ます。全員そろった後に同じキャラを引くと★が上がります（最大★5）。</div>
@@ -218,8 +218,8 @@
         return `<div class="gCard ur" style="--cc:${C.col}"><div class="gPic"><img src="${ART(r.c)}" alt="" class="gArt"></div><div class="urtag">UR</div><div class="gName" style="color:${C.col}">${esc(C.n)}</div>
           <div class="gTag">${r.kind === 'new' ? '<span class="newtag">NEW</span>' : r.kind === 'star' ? `★${r.from}→★${r.star}` : `素材変換 魂+${r.soul}`}</div></div>`;
       }
-      const it = r.it, col = G.RARITY[it.rar].c;
-      return `<div class="gCard" style="--cc:${col}"><div class="gPic"><img class="ic" src="${G.iconURL(it.slot)}" style="border-color:${col}" alt=""></div><div class="gRar" style="color:${col}">${G.RARITY[it.rar].n}</div>
+      const it = r.it, U = it.uq && G.UNIQUE[it.uq], col = U ? U.col : G.RARITY[it.rar].c;
+      return `<div class="gCard ${U ? 'uq' : ''}" style="--cc:${col}"><div class="gPic"><img class="ic" src="${G.iconURL(it.slot)}" style="border-color:${col}" alt=""></div><div class="gRar" style="color:${col}">${U ? '<span class="uqtag">固有</span>' : G.RARITY[it.rar].n}</div>
         <div class="gName" style="color:${col}">${esc(it.name)}</div><div class="gTag">${r.dis ? `分解済み 素材+${r.dis}` : G.SLOT_N[it.slot]}</div></div>`;
     }).join('');
     el.innerHTML = `<div class="gRes"><div class="h" style="font-size:18px;text-align:center">召喚結果（${rec.n}回）</div>

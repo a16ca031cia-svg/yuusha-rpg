@@ -694,3 +694,17 @@ body.touch #title .tNote{display:none}
 .rsNotes{margin-top:6px}.rsNotes .up{color:#7fff8a}
 .rsBless{margin-top:6px;font-size:12px;display:flex;flex-wrap:wrap;gap:4px 8px;align-items:center}
 .rsAwk{margin-top:4px;font-size:13px}
+/* ===================== 固有効果の装備・付与の変更 ===================== */
+.uqCard{box-shadow:0 0 12px -4px var(--c,#ffe36a)}
+.uqBox{margin-top:6px;padding:6px 8px;border-radius:6px;border:1px solid var(--c);background:color-mix(in srgb,var(--c) 12%,transparent);font-size:13px;line-height:1.6}
+.uqBox b{color:var(--c)}
+.uqtag{display:inline-block;padding:0 6px;border-radius:8px;font-size:10px;line-height:15px;background:linear-gradient(90deg,#ffd84d,#ff8ac8);color:#111;vertical-align:middle;box-shadow:0 0 6px rgba(255,216,77,.7)}
+.gCard.uq{box-shadow:0 0 16px -2px var(--cc),inset 0 0 12px -4px var(--cc);animation:uqGlow 1.4s ease-in-out infinite}
+@keyframes uqGlow{50%{box-shadow:0 0 24px 0 var(--cc),inset 0 0 16px -2px var(--cc)}}
+.rrRow{display:block;padding:6px 8px;margin-top:4px;border-radius:6px;border:1px solid var(--line);cursor:pointer;font-size:13px}
+.rrRow.on{border-color:var(--gold);background:rgba(255,216,77,.08)}
+.rrCmp{display:flex;align-items:center;gap:8px;margin-top:10px}
+.rrCmp > div:not(.rrArrow){flex:1;padding:8px;border-radius:6px;border:1px solid var(--line);font-size:13px;line-height:1.6}
+.rrNew{border-color:#7fff8a!important;background:rgba(127,255,138,.07)}
+.rrArrow{font-size:20px;color:var(--gold)}
+.rrRow.lockd{opacity:.6;cursor:default}

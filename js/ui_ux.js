@@ -28,6 +28,44 @@
   function closeAll() { queue.length = 0; if (cur) { cur = null; $('uxPop').classList.add('hidden'); } }
   const refreshCur = () => { if (cur) cur.render($('uxBody')); };
 
+  // ---------------------------------------------------------- 付与の変更（1枠だけ）
+  // 枠と系統を選んで変える → 変更前と変更後を見比べて、どちらを残すか選ぶ。狙った付与を確定で付けることもできる（素材6倍）
+  G.openReroll = id => {
+    const st = { idx: 0, cat: 'any', pick: '', res: null };
+    show({
+      key: 'reroll' + id, title: '付与の変更', render(b) {
+        const it = G.itemById(id); if (!it) { close(); return; }
+        const core = it.uq ? G.UNIQUE[it.uq].af : null, isCore = i => core && it.af[i].k === core; // 固有効果の要になる付与は変えない
+        if (isCore(st.idx)) st.idx = it.af.findIndex((a, i) => !isCore(i));
+        if (st.idx < 0) { b.innerHTML = '<div class="small">この装備の付与は変えられません</div>'; return; }
+        const cost = G.rerollCost(it), others = new Set(it.af.filter((a, i) => i !== st.idx).map(a => a.k));
+        const pool = G.AFFIX_POOL[it.slot].filter(k => !others.has(k) && k !== it.af[st.idx].k);
+        const afLine = a => `<b>${esc(G.AFX[a.k].n)} Lv${a.lv}</b> <span class="small">${esc(G.AFX[a.k].d(a.lv))}</span>`;
+        if (st.res) { // 結果：どちらを残すか
+          b.innerHTML = `<div class="small">${esc(it.name)}　の ${st.idx + 1}枠目</div>
+            <div class="rrCmp"><div class="rrOld"><div class="small">変更前</div>${afLine(st.res.old)}</div><div class="rrArrow">→</div><div class="rrNew"><div class="small">変更後</div>${afLine(st.res.nu)}</div></div>
+            <div class="lbBtn"><button id="rrTake" class="primary big">変更後にする</button><button id="rrKeep">元のまま</button></div>
+            <div class="small" style="text-align:center">素材 ${st.res.cost} を使いました（どちらを選んでも戻りません）</div>`;
+          $('rrTake').onclick = () => { G.applyReroll(id, st.idx, st.res.nu); G.sfx('pickup', 3); ui.toast('付与を「' + G.AFX[st.res.nu.k].n + '」に変えました'); st.res = null; refreshCur(); ui.render && ui.render(); };
+          $('rrKeep').onclick = () => { st.res = null; refreshCur(); };
+          return;
+        }
+        b.innerHTML = `<div class="small">${esc(it.name)}　ほかの付与・セット・強化はそのまま。手持ちの強化素材：<b>${G.S.mats.forge}</b></div>
+          <div class="h" style="margin-top:6px">変える枠</div>${it.af.map((a, i) => isCore(i) ? `<div class="rrRow lockd">🔒 ${afLine(a)}<div class="small">固有効果に必要な付与なので変えられません</div></div>` : `<label class="rrRow ${i === st.idx ? 'on' : ''}"><input type="radio" name="rrIdx" value="${i}" ${i === st.idx ? 'checked' : ''}> ${afLine(a)}</label>`).join('')}
+          <div class="h" style="margin-top:6px">変更先の系統</div><div class="polGrid">${Object.entries(G.AF_CAT).map(([k, c]) => { const n = c.k ? pool.filter(x => c.k.includes(x)).length : pool.length; return `<button data-cat="${k}" class="${k === st.cat ? 'primary' : ''}" ${n ? '' : 'disabled'}>${c.n}（${n}）</button>`; }).join('')}</div>
+          <div class="lbBtn"><button id="rrGo" class="primary big" ${G.S.mats.forge < cost ? 'disabled' : ''}>ランダムに変える（素材 ${cost}）</button></div>
+          <div class="h" style="margin-top:8px">狙った付与を確定で付ける（素材 ${cost * 6}）</div>
+          <div class="row" style="gap:6px;flex-wrap:wrap"><select id="rrPick"><option value="">付与を選ぶ</option>${pool.map(k => `<option value="${k}" ${st.pick === k ? 'selected' : ''}>${esc(G.AFX[k].n)}（${esc(G.AFX[k].g)}）</option>`).join('')}</select><button id="rrFix" ${!st.pick || G.S.mats.forge < cost * 6 ? 'disabled' : ''}>確定で付ける</button></div>`;
+        b.querySelectorAll('[name=rrIdx]').forEach(x => x.onchange = () => { st.idx = +x.value; st.pick = ''; refreshCur(); });
+        b.querySelectorAll('[data-cat]').forEach(x => x.onclick = () => { st.cat = x.dataset.cat; refreshCur(); });
+        $('rrPick').onchange = e => { st.pick = e.target.value; refreshCur(); };
+        const roll = pick => { const r = G.rerollAffix(id, st.idx, pick ? 'any' : st.cat, pick || ''); if (r.err) { ui.toast(r.err); return; } st.res = r; G.sfx('enh'); refreshCur(); };
+        $('rrGo').onclick = () => roll('');
+        $('rrFix').onclick = () => roll(st.pick);
+      }
+    });
+  };
+
   // ---------------------------------------------------------- 祝福の方針（ホームで選ぶ）と、祝福・覚醒の一覧
   G.openBlessPol = () => show({
     key: 'blessPol', title: '祝福の方針', render(b) {
@@ -93,7 +131,7 @@
   }
 
   // ---------------------------------------------------------- 結果画面の「何が強かったか」
-  const SRC_N = { atk: '通常攻撃', skill: '技', ult: '必殺技', chain: '連鎖雷', follow: '追撃斬', boom: '撃破爆発', burn: '燃焼', poison: '毒' };
+  const SRC_N = { atk: '通常攻撃', skill: '技', ult: '必殺技', chain: '連鎖雷', follow: '追撃斬', boom: '撃破爆発', burn: '燃焼', poison: '毒', uq_ret: '迅雷の剣', uq_mark: '氷印の宝玉' };
   function srcName(k) {
     if (k.startsWith('sk_')) { const id = k.slice(3); try { return G.skillEvo(id).names[G.skillStageOf(G.skillLvAt(id, G.S.level))] || G.SKILLS[id].n; } catch (e) { return (G.SKILLS[id] || {}).n || '技'; } }
     return SRC_N[k] || (G.bless && G.bless.src[k]) || k;
@@ -162,7 +200,7 @@
     const autoOn = home && !S.settings.waitHome && !G.manualStart;
     const neverPulled = (S.gachaSeq || 1) <= 1 && S.coins >= G.GACHA.single; // まだ一度もガチャを引いていない人には、ガチャの案内を出したままにする
     if (G.bless) G.bless.refreshHud(); // 状態の枠の祝福（変わった時だけ描き直す）
-    if (cur && autoOn && cur.key !== 'mission' && cur.key !== 'blessPol') {
+    if (cur && autoOn && ['result', 'login', 'tips'].includes(cur.key)) { // 自分で開いた画面（ミッション・方針・付与の変更など）は閉じない
       cur.t = (cur.t || 0) + dt; const lim = cur.key === 'result' ? (neverPulled ? 12 : 6) : 10; // ガチャ未経験なら案内を長めに出す
       $('uxAuto').textContent = Math.ceil(lim - cur.t) + '秒後に閉じます';
       if (cur.t >= lim) { if (cur.key === 'login' && G.loginReady()) { const r = G.loginClaim(); if (r) { ui.toast('ログインボーナス コイン +' + r + '枚'); G.save(); } } close(); }

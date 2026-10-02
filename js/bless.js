@@ -32,14 +32,20 @@
   const B = G.bless = {};
 
   const run = () => G.S && G.S.run;
-  B.list = () => (run() && run().bless) || {};
+  B.raw = () => (run() && run().bless) || {};
+  // 効果に使うLv：固有効果「共鳴の指輪」なら、持っている祝福がすべて1段階強い
+  B.list = () => {
+    const L = B.raw(), H = G.hero;
+    if (!(H && H.st && H.st.uq && H.st.uq.resonance)) return L;
+    const o = {}; for (const k in L) o[k] = L[k] + 1; return o;
+  };
   B.lv = id => B.list()[id] || 0;
   B.awake = id => !!(run() && (run().awk || []).includes(id));
   B.src = { b_echo: '雷の残響', b_strike: '雷鳴の刃', b_seed: '氷の種', b_nova: '霜の波動', b_zan: '残心', b_critx: '会心の極意', b_bomb: '爆裂連鎖', b_gale: '疾風の刃', b_guard: '守護の反撃', b_raitei: '雷帝の怒り', b_kenki: '剣鬼' };
 
   // ---------------------------------------------------------- 獲得
   function pick() {
-    const L = B.list(), pol = G.S.settings.blessPol || 'auto', ct = CHAR_TAG[G.S.cur] || 'blade';
+    const L = B.raw(), pol = G.S.settings.blessPol || 'auto', ct = CHAR_TAG[G.S.cur] || 'blade';
     const owned = Object.keys(L), w = [];
     for (const id in G.BLESS) {
       const b = G.BLESS[id], lv = L[id] || 0; if (lv >= 3) continue;
@@ -76,7 +82,7 @@
     B.refreshHud();
   };
   function checkAwaken() {
-    const rr = run(), L = B.list();
+    const rr = run(), L = B.raw();
     for (const a of G.AWAKEN) {
       if (rr.awk.includes(a.id) || !a.need.every(k => L[k])) continue;
       rr.awk.push(a.id);

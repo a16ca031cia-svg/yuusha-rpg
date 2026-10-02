@@ -43,6 +43,25 @@ G.AFX = {
   luck:   { n: '幸運',   g: '収集',     a: '幸運の',   d: l => `装備ドロップ率 +${l * 8}%` },
 };
 
+// 固有効果の装備（ガチャのSSR以上から出る）：戦い方そのものを変える特別な効果。pol＝自動装備でこの方針なら特に優先
+G.UNIQUE = {
+  thunderRet: { n: '迅雷の剣', slot: 'weapon', af: 'chain', col: '#9fdcff', pol: ['boss'], fit: '雷でボス攻略', d: '連鎖する相手がいない雷は元の敵に戻り、残った分だけ追加ダメージ（相手が1体でも雷が活きる）' },
+  iceMark: { n: '氷印の宝玉', slot: 'acc', af: 'frost', col: '#bfeaff', pol: ['boss'], fit: '氷でボス攻略', d: 'ボス・強敵に攻撃を当てると氷の印がたまり、6つで破裂して大ダメージ（凍りにくい相手に）' },
+  recastCd: { n: '居合の鞘', slot: 'acc', af: 'cdr', col: '#ffc0c0', pol: ['mob'], fit: '技の連発・大量討伐', d: '技で敵を倒すと、その技の再使用時間が30%短くなる（1回の技で3回まで）' },
+  overShield: { n: '生命の護符', slot: 'body', af: 'regen', col: '#7fff8a', pol: ['safe'], fit: '回復・耐久型', d: 'HPが満タンを超えて回復した分の半分がバリアになる（最大HPの35%まで）' },
+  wideBoom: { n: '拡散の火種', slot: 'body', af: 'boom', col: '#ffa050', pol: ['mob'], fit: '広域連鎖型', d: '撃破爆発の威力が下がる代わりに、範囲が大きく広がる' },
+  resonance: { n: '共鳴の指輪', slot: 'acc', af: 'spow', col: '#ffe36a', pol: ['auto', 'coin'], fit: '祝福の構成', d: '探索中に得た祝福が、すべて1段階強くなる' },
+};
+// 付与の変更：変更先の系統
+G.AF_CAT = {
+  any: { n: 'おまかせ', k: null },
+  atk: { n: '攻撃', k: ['str', 'haste', 'crit', 'critd', 'reach', 'area'] },
+  proc: { n: '追加攻撃・状態異常', k: ['chain', 'follow', 'boom', 'burn', 'poison', 'frost'] },
+  def: { n: '耐久・回復', k: ['vit', 'grd', 'regen', 'barrier', 'leech'] },
+  skill: { n: '技', k: ['cdr', 'spow', 'recast'] },
+  util: { n: '探索・収集', k: ['swift', 'learn', 'luck'] },
+};
+G.rerollCost = it => 4 + it.rar * 4 + Math.floor(it.f / 5); // 系統を選んで変える時の強化素材（狙った付与を確定で付けるのは6倍）
 G.AFFIX_POOL = {
   weapon: ['str', 'haste', 'crit', 'critd', 'reach', 'area', 'chain', 'follow', 'boom', 'burn', 'poison', 'frost', 'spow', 'recast'],
   head: ['vit', 'grd', 'crit', 'cdr', 'learn', 'regen', 'barrier', 'area', 'spow'],
