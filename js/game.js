@@ -205,8 +205,11 @@
   const tileOf = (x, y) => Math.floor(y / T) * W.D.W + Math.floor(x / T);
   G.tileOf = (x, y) => tileOf(x, y);
   // 敵が今の画面に映っているか（スマホの縦画面は見える範囲が狭いので、画面の外の敵は倒さない）。足元が基準なので上は体の分だけ余裕を取る
-  const onScreen = e => { const c = G.cam; if (!c || !G.VW) return true; const dx = e.x - c.x, dy = e.y - c.y; return Math.abs(dx) < G.VW / 2 - 6 && dy > -G.VH / 2 + 16 && dy < G.VH / 2 - 4; };
-  const seen = e => !W || W.home || (!!W.vis[tileOf(e.x, e.y)] && onScreen(e)); // 敵が今の視界の中・画面の中にいるか
+  //   画面のふちぎりぎりではなく、少し内側（体がちゃんと見える所）まで入ってきた敵だけ
+  const onScreen = e => { const c = G.cam; if (!c || !G.VW) return true; const dx = e.x - c.x, dy = e.y - c.y, mx = Math.min(22, G.VW * .1); return Math.abs(dx) < G.VW / 2 - mx && dy > -G.VH / 2 + 30 && dy < G.VH / 2 - 14; };
+  const inView = e => !W || W.home || (!!W.vis[tileOf(e.x, e.y)] && onScreen(e));
+  // 攻撃が当たる敵：画面の中に入って、少しの間（ゲーム内0.8秒＝ふつうの速さで約0.4秒）映っていた敵。見えた瞬間に倒されることがないように
+  const seen = e => !W || W.home || (inView(e) && (e.seenT || 0) >= .8 || !!e.boss && inView(e));
   G.enemySeen = seen;
   function solid(px, py) {
     const D = W.D, tx = Math.floor(px / T), ty = Math.floor(py / T);
@@ -1614,6 +1617,7 @@
     for (const e of list) {
       e.t += dt; e.ph = (e.ph || 0) + Math.hypot(e.vx, e.vy) * dt; e.flash -= dt; e.lunge -= dt; e.shake -= dt; e.hpShow -= dt; if (e.hopT > 0) e.hopT -= dt;
       if (e.dead) { e.deadT += dt; continue; }
+      e.seenT = inView(e) ? (e.seenT || 0) + dt : 0; // 画面に映っている時間（映ってすぐは攻撃が当たらない）
       // 状態異常
       if (e.burn) {
         e.burn.t -= dt; e.burn.tick -= dt;
