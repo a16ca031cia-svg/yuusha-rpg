@@ -292,6 +292,11 @@
   }));
   POSES.blink = POSES.idle.map(p => Object.assign({}, p, { eye: 1 }));
   POSES.idleX = POSES.idle.map(p => Object.assign({}, p, { eye: 2 })); // ホームで何度もつつかれた時の「＞＜」の目
+  // ホームの待機（ぬるぬる版）：16コマ。体の上下（1ドット単位でカクつく）はやめて、マントのなびきと剣の光だけを細かく動かす
+  //   呼吸の上下・伸び縮みは画面側（ui_home.js）でなめらかに付ける
+  POSES.home = Array.from({ length: 16 }, (_, i) => ({ by: 0, hy: 0, sway: 0, cape: { amp: 1, ph: i / 16 * TAU, st: 0 }, glint: i >= 4 && i <= 11 ? (i - 4) / 7 : null }));
+  POSES.homeX = POSES.home.map(p => Object.assign({}, p, { eye: 2 }));
+  POSES.homeB = POSES.home.map(p => Object.assign({}, p, { eye: 1 })); // まばたき
   // 足の動き（1歩の周期 q）：前へ振り出す間は足を持ち上げ、踏み出し切るとつま先が上がり（かかとから着地）、
   // 後ろへ送り切るとかかとが上がって蹴り出す
   const foot = (q, stride, lift, tiltK) => {

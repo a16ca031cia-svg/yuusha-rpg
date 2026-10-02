@@ -172,6 +172,8 @@
       return { lL: Math.round(Math.max(0, s) * 4.5), lR: Math.round(Math.max(0, -s) * 4.5), by: -Math.round(Math.abs(s) * 1.6), dx: Math.round(s), wr: 5 * Math.sin(t * TAU + 1), famp: 2.2, fph: t * 2 * TAU, fs: .4, hs: Math.round(s * 1.5) };
     });
     // 待機：体が呼吸で上下し、頭は少し遅れてついていく。武器はゆらゆら揺れ、髪がなびく（ずらしてできたすき間は fill でふさぐ）
+    // ホームの待機（ぬるぬる版）：16コマ。体・頭の1ドットの上下はやめ、武器をなめらかに揺らし、髪をなびかせる（呼吸は画面側で）
+    if (set === 'home') return Array.from({ length: 16 }, (_, i) => { const q = i / 16 * TAU; return { by: 0, wr: Math.sin(q) * 2.2, famp: 1, fph: q, fill: true }; });
     if (set === 'idle') return Array.from({ length: 8 }, (_, i) => { const q = i / 8 * TAU; return { by: [0, 0, 0, 1, 1, 1, 1, 0][i], hy: [0, 0, 0, -1, 0, 0, 0, 1][i], wy: [0, 0, 0, 1, 1, 1, 1, 0][i], wr: Math.sin(q) * 2, famp: .9, fph: q, fill: true }; });
     // 攻撃：剣・刀は振りかぶって（体の後ろ）振り下ろす。杖は掲げてから前へ振る
     // 角度は画面上の時計回りが正（左向きの絵では、正＝武器の先が上がる・振りかぶる）。lean は正＝のけぞる・負＝前へ倒れる
@@ -184,16 +186,16 @@
   G.charRigFrame = function (c, view, set, i) {
     const key = c + view + set + i; if (CACHE[key] !== undefined) return CACHE[key];
     const src = G.charSrc && G.charSrc(c, view); if (!src) return null;
-    const dz = set === 'idleX'; if (dz) set = 'idle'; // idleX＝「＞＜」の目の待機
+    const dz = set === 'idleX' || set === 'homeX'; if (dz) set = set.slice(0, -1); // ～X＝「＞＜」の目の待機
     const bk = c + view + (dz ? 'X' : '');
     const S = BUILT[bk] || (BUILT[bk] = build(c, view, src, dz)); if (!S) return CACHE[key] = null;
     const P = poses(S, view, set); if (!P) return CACHE[key] = null;
     const p = P[Math.max(0, Math.min(P.length - 1, i))];
     return CACHE[key] = { n: compose(S, p), fix: view === 'runR' || view === 'back', ox: OX, oy: OY };
   };
-  G.charRigCount = set => ({ run: 12, back: 10, idle: 8, idleX: 8, atk: 6, raise: 3 })[set] || 0;
+  G.charRigCount = set => ({ run: 12, back: 10, idle: 8, idleX: 8, home: 16, homeX: 16, atk: 6, raise: 3 })[set] || 0;
   // 選択中のキャラのコマを空き時間に少しずつ先に作る（初めて使うコマで一瞬止まらないように）
-  const JOBS = [['front', 'idle'], ['runL', 'run'], ['runR', 'run'], ['front', 'atk'], ['back', 'back'], ['front', 'raise'], ['front', 'idleX']];
+  const JOBS = [['front', 'home'], ['front', 'idle'], ['runL', 'run'], ['runR', 'run'], ['front', 'atk'], ['back', 'back'], ['front', 'raise'], ['front', 'idleX']];
   setInterval(() => {
     const c = G.S && G.S.cur; if (!c || c === 'hero' || !G.charSrc || !G.charSrc(c, 'front')) return;
     const t0 = performance.now();

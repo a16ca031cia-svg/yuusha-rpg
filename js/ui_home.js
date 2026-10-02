@@ -67,7 +67,7 @@
   }
   // ばね：J＝つぶれ具合（＋でつぶれ、−で縦に伸びる）、K＝左右の傾き（ゼリーのように揺れる）
   const J = { x: 0, v: 0 }, K = { x: 0, v: 0 };
-  let press = false, tiltT = 0;
+  let press = false, tiltT = 0, breathT = 0;
   function poke(px, amt) { J.v += amt * 30; K.v += (px - .5) * 12; }
   function jelly(dt) {
     dt = Math.min(dt, 1 / 30);
@@ -77,8 +77,9 @@
       K.v += ((press ? tiltT * .5 : 0) - K.x) * 210 * h - K.v * 5 * h; K.x += K.v * h;
     }
     const sq = Math.max(-.2, Math.min(.22, J.x)), b = $('hbBody');
-    if (Math.abs(sq) < .001 && Math.abs(K.x) < .002 && !press) { if (b.style.transform) b.style.transform = ''; return; }
-    b.style.transform = `skewX(${(K.x * 10).toFixed(2)}deg) scale(${(1 + sq * .75).toFixed(4)},${(1 - sq).toFixed(4)})`;
+    // 呼吸：ゆっくり縦に伸び縮み（ドットの1マスより細かく動くので、なめらかに見える）。足元は固定
+    breathT += dt; const br = Math.sin(breathT * Math.PI * 2 / 2.8), sway = Math.sin(breathT * Math.PI * 2 / 5.6);
+    b.style.transform = `skewX(${(K.x * 10 + sway * .6).toFixed(2)}deg) scale(${((1 + sq * .75) * (1 - br * .006)).toFixed(4)},${((1 - sq) * (1 + br * .014)).toFixed(4)})`;
   }
   // キャラをタップ：セリフと小さく跳ねる
   // 何度もつつくと「＞＜」の目になって、しばらくすると元に戻る
@@ -150,9 +151,11 @@
     menuIcons();
   }
   // ドット絵（SD）の待機アニメーションを大きく表示：勇者はいつも、ガチャのキャラは「SD」に切り替えた時
-  let pixT = 0, pixKey = '', box = null;
-  function sdFrame(c, i, dz) {
-    const set = dz ? 'idleX' : 'idle';
+  let pixT = 0, pixKey = '', box = null, lastFrameKey = '';
+  // ホームの待機は16コマ（1秒に12コマ）のなめらか版。dz＝「＞＜」の目、bl＝まばたき（勇者だけ）
+  const NF = 16, FPS = 12;
+  function sdFrame(c, i, dz, bl) {
+    const set = dz ? 'homeX' : bl && c === 'hero' ? 'homeB' : 'home';
     if (c === 'hero') return G.heroPose && G.heroPose(set, i);
     const fr = G.charRigFrame && G.charRigFrame(c, 'front', set, i);
     return fr ? fr.n : G.charPortrait(c);
@@ -161,7 +164,7 @@
   function sdBox(c) {
     if (c === 'hero') return { x: 0, y: 0, w: 140, h: 144 };
     let x0 = 1e9, y0 = 1e9, x1 = -1, y1 = -1;
-    for (let i = 0; i < 8; i++) {
+    for (let i = 0; i < NF; i++) {
       const f = sdFrame(c, i); if (!f) return null;
       const d = f.getContext('2d').getImageData(0, 0, f.width, f.height).data;
       for (let y = 0; y < f.height; y++) for (let x = 0; x < f.width; x++) if (d[(y * f.width + x) * 4 + 3]) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
@@ -173,9 +176,12 @@
     const c = G.S.cur, C = G.CHARS[c];
     if (dizzyT > 0) dizzyT -= dt;
     if (C.gacha && G.S.settings.homeView !== 'sd') return;
-    if (pixKey !== c) { box = sdBox(c); if (!box) return; pixKey = c; const cv = $('hbPix'); cv.width = box.w; cv.height = box.h; cv.style.aspectRatio = box.w + '/' + box.h; }
+    if (pixKey !== c) { box = sdBox(c); if (!box) return; pixKey = c; lastFrameKey = ''; const cv = $('hbPix'); cv.width = box.w; cv.height = box.h; cv.style.aspectRatio = box.w + '/' + box.h; }
     pixT += dt;
-    const cv = $('hbPix'), x = cv.getContext('2d'), fr = sdFrame(c, Math.floor(pixT * 5) % 8, dizzyT > 0);
+    const blink = (pixT % 3.7) < .14; // 3.7秒ごとにまばたき
+    const fi = Math.floor(pixT * FPS) % NF, key = fi + (dizzyT > 0 ? 'x' : blink ? 'b' : '');
+    if (key === lastFrameKey) return; lastFrameKey = key; // 変わった時だけ描き直す
+    const cv = $('hbPix'), x = cv.getContext('2d'), fr = sdFrame(c, fi, dizzyT > 0, blink);
     if (!fr) return; x.clearRect(0, 0, cv.width, cv.height); x.imageSmoothingEnabled = false; x.drawImage(fr, -box.x, -box.y);
   }
   // ホームの時だけ表示（タイトル・切り替え中は隠す）。表示中は通常のHUDを隠す
