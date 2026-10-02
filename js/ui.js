@@ -224,7 +224,8 @@
   ui.upgradeCheck = function () {
     const cache = {}, S = G.S;
     let n = 0;
-    for (const it of S.items) {
+    // 自動装着がONなら、育成方針に合わせてもう付け替えてあるので印は出さない（数字だけ高い装備を「おすすめ」と誤解させない）
+    if (!S.settings.autoEquip) for (const it of S.items) {
       if (!it.nw || G.isEquipped(it.id)) continue;
       if (cache[it.slot] == null) cache[it.slot] = ui.curScore(it.slot);
       if (G.itemScore(it) > cache[it.slot]) n++;
