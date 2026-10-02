@@ -152,8 +152,8 @@
   }
   // ドット絵（SD）の待機アニメーションを大きく表示：勇者はいつも、ガチャのキャラは「SD」に切り替えた時
   let pixT = 0, pixKey = '', box = null, lastFrameKey = '';
-  // ホームの待機は32コマ（1秒に12コマ・約2.7秒で一呼吸）のなめらか版。dz＝「＞＜」の目、bl＝まばたき（勇者だけ）
-  const NF = 32, FPS = 12;
+  // ホームの待機は16コマ（1秒に10コマ）。部位ごとに1ドットずつ時間差で動く。dz＝「＞＜」の目、bl＝まばたき（勇者だけ）
+  const NF = 16, FPS = 10;
   function sdFrame(c, i, dz, bl) {
     const set = dz ? 'homeX' : bl && c === 'hero' ? 'homeB' : 'home';
     if (c === 'hero') return G.heroPose && G.heroPose(set, i);

@@ -307,8 +307,12 @@
   POSES.idleX = POSES.idle.map(p => Object.assign({}, p, { eye: 2 })); // ホームで何度もつつかれた時の「＞＜」の目
   // ホームの待機（ぬるぬる版）：16コマ。体の上下（1ドット単位でカクつく）はやめて、マントのなびきと剣の光だけを細かく動かす
   //   呼吸の上下・伸び縮みは画面側（ui_home.js）でなめらかに付ける
-  //   32コマで一呼吸。呼吸（br）・上半身の小さな傾き（shear）・髪先（sway）・マントを少しずつずらして重ね、毎コマどこかのドットが動く
-  POSES.home = Array.from({ length: 32 }, (_, i) => { const q = i / 32 * TAU; return { by: 0, hy: 0, br: 1.35 * (1 - Math.cos(q)) / 2, shear: .015 * Math.sin(q + .8), sway: 1.4 * Math.sin(q + 1.6), cape: { amp: 1.1, ph: q * 2, st: 0 }, glint: i >= 8 && i <= 23 ? (i - 8) / 15 : null }; });
+  //   16コマ。部位ごとに固まりのまま1ドットずつ、時間をずらして動かす（波のようにゆがめない）
+  //   体が1ドット沈む → 1コマ遅れて頭 → 髪先が左右へ1ドット。マントは小さくはためく。剣の光が流れる
+  POSES.home = Array.from({ length: 16 }, (_, i) => {
+    const on = (a, b) => i >= a && i <= b ? 1 : 0, body = on(5, 12), head = on(6, 13);
+    return { by: body, hy: head - body, sway: on(2, 7) - on(10, 15), cape: { amp: .45, ph: i / 16 * TAU, st: 0 }, glint: i >= 4 && i <= 11 ? (i - 4) / 7 : null };
+  });
   POSES.homeX = POSES.home.map(p => Object.assign({}, p, { eye: 2 }));
   POSES.homeB = POSES.home.map(p => Object.assign({}, p, { eye: 1 })); // まばたき
   // 足の動き（1歩の周期 q）：前へ振り出す間は足を持ち上げ、踏み出し切るとつま先が上がり（かかとから着地）、

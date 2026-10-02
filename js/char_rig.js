@@ -141,6 +141,17 @@
         const v = L.px[sy * w + sx]; if (v) out[Y * FW + X] = v;
       }
     };
+    // 髪・布を2つの固まり（首に近い側・毛先側）に分けて、それぞれ1ドットずつずらす（ゆがめない）。首から上の部分は頭と一緒に上がる
+    const flowRigid = () => {
+      const L = S.flow; if (!L.n) return;
+      const b = L.bb, back = R.back ? -1 : -(R.fwd || -1), [nx] = S.neck, reach = 55 * S.sc, A = P.hairA || [0, 0], Bk = P.hairB || [0, 0];
+      for (let y = b.y0; y <= b.y1; y++) for (let x = b.x0; x <= b.x1; x++) {
+        const v = L.px[y * w + x]; if (!v) continue;
+        const t = G.clamp(((x - nx) * back) / reach, 0, 1), c = t < .45 ? A : Bk;
+        const up = y <= neckY ? -(P.hy || 0) : (y < hipY ? P.chest || 0 : 0);
+        put(x + ox + shx(y) + back * c[0], y + oy - up + c[1], v);
+      }
+    };
     const wa = (P.wr || 0) * Math.PI / 180;
     if (R.back) {
       blit(S.legL, 0, -(P.lL || 0)); blit(S.legR, 0, -(P.lR || 0));
@@ -152,8 +163,13 @@
     } else {
       // 正面の立ち絵：振りかぶった武器は体の後ろ、振り下ろしは手前
       const wyB = (P.wy || 0) - uOf(S.shoulder[1]); // 武器は肩の高さの分だけ呼吸で上がる（端数のまま回すので、なめらか）
-      flow(); if (P.wBack) rot(S.weapon, S.shoulder, wa, P.wx || 0, wyB);
-      if (br) { blitV(S.body, 0, 0, hair); if (S.head) blitV(S.head, P.hx || 0, P.hy || 0, hair); }
+      if (P.rigid) flowRigid(); else flow();
+      if (P.wBack) rot(S.weapon, S.shoulder, wa, P.wx || 0, wyB);
+      if (P.rigid) { // 部位ごとに固まりで動かす：胸から上（首～腰の少し上）だけ持ち上げる
+        const L = S.body, b = L.bb, cy0 = neckY, cy1 = hipY;
+        for (let y = b.y0; y <= b.y1; y++) { const up = y > cy0 && y < cy1 ? P.chest || 0 : y <= cy0 ? P.chest || 0 : 0; for (let x = b.x0; x <= b.x1; x++) { const v = L.px[y * w + x]; if (v) put(x + ox + shx(y), y + oy - up, v); } }
+        if (S.head) blit(S.head, P.hx || 0, P.hy || 0, hair);
+      } else if (br) { blitV(S.body, 0, 0, hair); if (S.head) blitV(S.head, P.hx || 0, P.hy || 0, hair); }
       else { blit(S.body, 0, 0, hair); if (S.head) blit(S.head, P.hx || 0, P.hy || 0, hair); }
       if (!P.wBack) rot(S.weapon, S.shoulder, wa, P.wx || 0, wyB);
     }
@@ -189,10 +205,11 @@
     });
     // 待機：体が呼吸で上下し、頭は少し遅れてついていく。武器はゆらゆら揺れ、髪がなびく（ずらしてできたすき間は fill でふさぐ）
     // ホームの待機（ぬるぬる版）：16コマ。体・頭の1ドットの上下はやめ、武器をなめらかに揺らし、髪をなびかせる（呼吸は画面側で）
-    //   32コマで一呼吸。呼吸（br）・体の小さな揺れ（lean）・頭の髪先（hs）・武器（wr）・なびき（fph）を少しずつずらして重ね、毎コマどこかのドットが動く
-    if (set === 'home') return Array.from({ length: 32 }, (_, i) => {
-      const q = i / 32 * TAU;
-      return { by: 0, br: 1.35 * (1 - Math.cos(q)) / 2, lean: .55 * Math.sin(q + .8), hs: 1.3 * Math.sin(q + 1.6), wr: 2.6 * Math.sin(q + .5), famp: 1.1, fph: q * 2, fill: true };
+    //   16コマ。部位ごとに固まりのまま1ドットずつ、少しずつ時間をずらして動かす（波のようにゆがめない）
+    //   胸から上が上がる → 1コマ遅れて頭 → 髪の付け根側 → 毛先、の順に動く。武器は手と一緒に上がり、少し傾く
+    if (set === 'home') return Array.from({ length: 16 }, (_, i) => {
+      const on = (a, b) => i >= a && i <= b ? 1 : 0;
+      return { rigid: true, chest: on(3, 10), hy: -on(4, 11), wy: -on(3, 10), wr: 1.6 * Math.sin(i / 16 * TAU), hairA: [on(5, 12), 0], hairB: [on(7, 14), -on(9, 13)], fill: true };
     });
     if (set === 'idle') return Array.from({ length: 8 }, (_, i) => { const q = i / 8 * TAU; return { by: [0, 0, 0, 1, 1, 1, 1, 0][i], hy: [0, 0, 0, -1, 0, 0, 0, 1][i], wy: [0, 0, 0, 1, 1, 1, 1, 0][i], wr: Math.sin(q) * 2, famp: .9, fph: q, fill: true }; });
     // 攻撃：剣・刀は振りかぶって（体の後ろ）振り下ろす。杖は掲げてから前へ振る
@@ -213,7 +230,7 @@
     const p = P[Math.max(0, Math.min(P.length - 1, i))];
     return CACHE[key] = { n: compose(S, p), fix: view === 'runR' || view === 'back', ox: OX, oy: OY };
   };
-  G.charRigCount = set => ({ run: 12, back: 10, idle: 8, idleX: 8, home: 32, homeX: 32, atk: 6, raise: 3 })[set] || 0;
+  G.charRigCount = set => ({ run: 12, back: 10, idle: 8, idleX: 8, home: 16, homeX: 16, atk: 6, raise: 3 })[set] || 0;
   // 選択中のキャラのコマを空き時間に少しずつ先に作る（初めて使うコマで一瞬止まらないように）
   const JOBS = [['front', 'home'], ['front', 'idle'], ['runL', 'run'], ['runR', 'run'], ['front', 'atk'], ['back', 'back'], ['front', 'raise'], ['front', 'idleX']];
   setInterval(() => {
