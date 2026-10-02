@@ -119,7 +119,9 @@ G.hash2 = (x, y, s) => {
 // 大きな数の表記：1000ごとに単位 A・B・C…Z、その先は AA・AB…（例 1650 → 1.65A、2.4億 → 240B）
 G.fmtBig = n => {
   n = Math.max(0, n || 0);
-  if (n < 1000) return String(Math.floor(n));
+  if (n < 1e5) return Math.floor(n).toLocaleString('ja-JP'); // 10万までは桁区切りでそのまま（3.95A のような記号は分かりにくい）
+  const J = [[1e16, '京'], [1e12, '兆'], [1e8, '億'], [1e4, '万']];
+  if (n < 1e20) for (const [b, s] of J) if (n >= b) { const v = n / b; return (v < 10 ? v.toFixed(2) : v < 100 ? v.toFixed(1) : Math.floor(v)) + s; }
   let u = Math.floor(Math.log10(n) / 3), v = n / Math.pow(1000, u);
   if (v >= 999.5) { u++; v /= 1000; }
   const unit = u <= 26 ? String.fromCharCode(64 + u) : String.fromCharCode(64 + Math.floor((u - 1) / 26)) + String.fromCharCode(65 + (u - 1) % 26);

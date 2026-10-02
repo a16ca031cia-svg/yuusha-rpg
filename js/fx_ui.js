@@ -13,7 +13,7 @@
     const bg = document.createElement('div'); bg.className = 'tBg';
     bg.innerHTML = `<div class="tRays"></div><img class="tArt l" src="${ART('thunder')}" alt=""><img class="tArt r" src="${ART('samurai')}" alt=""><img class="tArt c" src="${ART('ice')}" alt=""><div class="tFog"></div><div class="tEmbers">${sparks(28, 'em')}</div>`;
     t.insertBefore(bg, t.firstChild);
-    const logo = t.querySelector('.tMain'); if (logo) logo.classList.add('shine');
+    const logo = t.querySelector('.tMain'); if (logo) { logo.dataset.t = logo.textContent; logo.classList.add('shine'); }
   }
 
   // ---------------------------------------------------------- ホームの光の粒
@@ -102,7 +102,8 @@
   G.enterFloor = function (f, snap) {
     const r = enter0.apply(this, arguments);
     if (!snap && f % 5 === 0) {
-      const w = $('bossWarn'); w.querySelector('.bwSub').textContent = 'B' + f + 'F　階層の主が待ち受けている';
+      const K = G.W && G.W.boss && G.W.boss.bk ? G.bossKindAt(f) : null;
+      const w = $('bossWarn'); w.querySelector('.bwSub').innerHTML = K ? 'B' + f + 'F　<b>' + K.n + '</b> が待ち受けている<br><span class="bwD">' + K.d + '</span>' : 'B' + f + 'F　階層の主が待ち受けている';
       clearTimeout(w._t0); clearTimeout(w._to);
       w._t0 = setTimeout(() => { // 階の名前の表示が終わってから
         w.classList.remove('on'); void w.offsetWidth; w.classList.add('on'); G.sfx('alarm');

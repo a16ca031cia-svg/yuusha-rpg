@@ -226,6 +226,14 @@ G.ENEMY = {
   mage:   { n: '魔導士',       role: 'caster', hp: 22, atk: 9,  spd: 30, range: 130, wind: .7,  rec: .5,  cd: 2.6, exp: 11, r: 6 },
   mimic:  { n: 'ミミック',     role: 'melee',  hp: 60, atk: 11, spd: 46, range: 11,  wind: .3,  rec: .4,  cd: 1.0, exp: 20, r: 7 },
 };
+// 階層の主（5階ごと）：4種類が順番に現れる。それぞれ戦い方が違う
+G.BOSS_KIND = [
+  { id: 'king', type: 'slime', n: '群れの王', d: '手下のスライムを次々と呼び出す', col: '#c890ff' },
+  { id: 'armor', type: 'golem', n: '鎧の巨兵', d: '鎧を砕くまでダメージが通りにくい', col: '#9fd0ff' },
+  { id: 'core', type: 'mage', n: '魔力の核', d: '全方位に魔力の弾をばらまく', col: '#ff9ad8' },
+  { id: 'blade', type: 'goblin', n: '高速の剣士', d: '一直線に斬り込んでくる。突進の後はすきだらけ', col: '#ff6a4a' },
+];
+G.bossKindAt = f => G.BOSS_KIND[((Math.round(f / 5) - 1) % 4 + 4) % 4];
 G.TIER_PREFIX = ['', '赤き', '蒼き', '冥き', '黄金の'];
 
 // 階層による敵の強化

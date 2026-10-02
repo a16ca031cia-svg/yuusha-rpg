@@ -156,7 +156,11 @@
     // ボス
     const boss = W && W.boss && !W.boss.dead && W.boss.awake ? W.boss : null;
     $('bossBar').classList.toggle('hidden', !boss);
-    if (boss) { $('bossName').textContent = boss.name; $('bossFill').style.width = (boss.hp / boss.maxHp * 100) + '%'; }
+    if (boss) {
+      $('bossName').textContent = boss.name + (boss.stun > 0 ? '　すきあり！' : '');
+      $('bossFill').style.width = (boss.hp / boss.maxHp * 100) + '%';
+      $('bossArm').classList.toggle('hidden', !boss.armorMax); if (boss.armorMax) $('bossArmFill').style.width = (Math.max(0, boss.armor) / boss.armorMax * 100) + '%'; // 鎧の残り
+    }
     // ホームの出発カウント
     if (S.mode === 'home') {
       $('homeTimer').textContent = G.trans ? '突入！' : G.manualStart ? '準備ができたら「突入」を押してください' : S.settings.waitHome ? '待機中（自動出発しません）' : `${Math.max(0, G.homeT).toFixed(1)} 秒後に自動で突入`;
@@ -204,7 +208,7 @@
     const box = $('loot');
     const d = document.createElement('div'); d.className = 'lootItem'; d.style.borderLeftColor = rc(it.rar);
     const af = it.af.map(a => G.AFX[a.k].n + ' Lv' + a.lv).join(' / ');
-    d.innerHTML = `<img src="${G.iconURL(it.slot)}"><div style="min-width:0"><div class="ln" style="color:${rc(it.rar)}">${esc(it.name)}</div><div class="la">${note ? esc(note) : esc(af || G.RARITY[it.rar].n)}</div></div>`;
+    d.innerHTML = `<img src="${G.iconURL(it.slot, it.b)}"><div style="min-width:0"><div class="ln" style="color:${rc(it.rar)}">${esc(it.name)}</div><div class="la">${note ? esc(note) : esc(af || G.RARITY[it.rar].n)}</div></div>`;
     // クリックで装備画面を開いてその装備と比較できる
     if (!note) { d.style.pointerEvents = 'auto'; d.style.cursor = 'pointer'; d.title = 'クリックで装備画面で比較'; d.onclick = () => { if (!G.itemById(it.id)) return; sel.slot = it.slot === 'acc' ? 'acc1' : it.slot; sel.item = it.id; ui.open('equip'); }; }
     box.appendChild(d); lootQ.push(d);
@@ -231,7 +235,13 @@
   };
   ui.invChanged = function () { if (panel === 'inv' || panel === 'equip') ui.render(); ui.upgradeCheck(); };
   let bannerTO = null, toastTO = null;
+  let bannerWait = 0;
   ui.banner = function (a, b) {
+    // 大きな文字（レベルアップ等）が出ている間は重ねずに、終わってから出す
+    clearTimeout(bannerWait);
+    const wait = coUntil - performance.now();
+    if (wait > 0 && coPrio >= 3) { bannerWait = setTimeout(() => ui.banner(a, b), wait + 360); return; }
+    const bw = $('bossWarn'); if (bw && bw.classList.contains('on')) { bannerWait = setTimeout(() => ui.banner(a, b), 900); return; } // 「WARNING」の表示中も重ねない
     $('bannerTop').textContent = a; $('bannerSub').textContent = b || '';
     const el = $('banner'); el.classList.add('show');
     clearTimeout(bannerTO); bannerTO = setTimeout(() => el.classList.remove('show'), 2200);
@@ -251,6 +261,7 @@
     if (now < coUntil && (o.prio || 0) < coPrio) return; // もっと大事な演出が表示中
     const el = $('callout'), main = el.querySelector('.coMain'), sub = el.querySelector('.coSub'), rays = el.querySelector('.coRays');
     const t = TONES[o.tone] || TONES.gold, fx = G.S.settings.fx;
+    if ((o.prio || 0) >= 3) $('banner').classList.remove('show'); // 階層名などの帯と重ならないように
     el.style.setProperty('--c1', t[0]); el.style.setProperty('--c2', t[1]); el.style.setProperty('--glow', t[2]); el.style.setProperty('--ray', t[3]);
     el.style.setProperty('--sz', o.size || 1);
     main.dataset.t = o.text;
@@ -336,7 +347,7 @@
     if (!it) return `<div class="card"><div class="small">装備なし</div></div>`;
     const U = it.uq && G.UNIQUE[it.uq];
     return `<div class="card ${U ? 'uqCard' : ''}" style="border-color:${U ? U.col : rc(it.rar) + '66'}">
-      <div class="row"><img class="ic" src="${G.iconURL(it.slot)}" style="border-color:${rc(it.rar)}"><div>
+      <div class="row"><img class="ic" src="${G.iconURL(it.slot, it.b)}" style="border-color:${rc(it.rar)}"><div>
       <div class="ttl" style="color:${U ? U.col : rc(it.rar)}">${it.lock ? '🔒' : ''}${esc(it.name)} ${it.fav ? '<span class="star on">★</span>' : ''}</div>
       <div class="meta">${G.RARITY[it.rar].n}・${G.SLOT_N[it.slot]}・B${it.f}F産・評価 ${G.itemScore(it)}・売値 ${G.itemValue(it)}G</div></div></div>
       <div class="st">${itemStats(it)}</div>
@@ -383,7 +394,7 @@
     const slots = G.SLOTS.map(s => {
       const it = G.itemById(S.equip[s]);
       return `<div class="slot ${sel.slot === s ? 'sel' : ''}" data-s="${s}"><div class="sn">${G.SLOT_N[s]}</div>
-        ${it ? `<img class="ic" src="${G.iconURL(it.slot)}" style="border-color:${rc(it.rar)}"><div style="min-width:0;flex:1"><div class="nm" style="color:${rc(it.rar)};font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${it.lock ? '🔒' : ''}${esc(it.name)}</div><div class="small">${itemStats(it)}</div></div>` : '<div class="small">― 空き ―</div>'}</div>`;
+        ${it ? `<img class="ic" src="${G.iconURL(it.slot, it.b)}" style="border-color:${rc(it.rar)}"><div style="min-width:0;flex:1"><div class="nm" style="color:${rc(it.rar)};font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${it.lock ? '🔒' : ''}${esc(it.name)}</div><div class="small">${itemStats(it)}</div></div>` : '<div class="small">― 空き ―</div>'}</div>`;
     }).join('');
     const type = G.slotType(sel.slot);
     // 候補の並び：レア度順（同じレア度は評価の高い順）／評価順／新しい順
@@ -435,7 +446,7 @@
     const eq = G.isEquipped(it.id);
     const better = cmp != null && G.itemScore(it) > cmp ? '<span class="up" title="評価値が現在の装備より高い">▲</span>' : '';
     return `<div class="it ${selected ? 'sel' : ''}" data-id="${it.id}">
-      <img class="ic" src="${G.iconURL(it.slot)}" style="border-color:${rc(it.rar)}">
+      <img class="ic" src="${G.iconURL(it.slot, it.b)}" style="border-color:${rc(it.rar)}">
       <div class="grow"><div class="nm" style="color:${it.uq ? G.UNIQUE[it.uq].col : rc(it.rar)}">${better}${it.lock ? '🔒' : ''}${esc(it.name)}${it.uq ? ' <span class="uqtag">固有</span>' : ''} ${recommended ? '<span class="rectag">おすすめ</span>' : ''} ${it.nw ? '<span class="newtag">NEW</span>' : ''} ${eq ? `<span class="eqtag">${G.SLOT_N[eq]}装備中</span>` : ''}</div>
       <div class="af">${itemStats(it)}${it.af.length ? '　|　' + it.af.map(a => G.AFX[a.k].n + ' Lv' + a.lv).join(' / ') : ''}</div></div>
       <span class="small" style="text-align:right;white-space:nowrap"><span style="color:${rc(it.rar)}">${G.RARITY[it.rar].n}</span><br>B${it.f}F</span><span class="star ${it.fav ? 'on' : ''}" data-fav="${it.id}" title="お気に入り（分解から保護）">★</span></div>`;

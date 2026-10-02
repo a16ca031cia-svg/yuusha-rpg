@@ -229,6 +229,43 @@
       ctx.globalAlpha = 1;
     }
   }
+  function drawBossTell(e, t) {
+    const x = e.x, y = e.y;
+    ctx.save();
+    if (e.bk === 'king' && e.castT > 0) { // 手下を呼ぶ：紫の輪が集まってくる
+      const p = 1 - e.castT / .9;
+      ctx.translate(x, y); ctx.scale(1, .55);
+      ctx.globalAlpha = .7; ctx.strokeStyle = '#c890ff'; ctx.lineWidth = 1.5;
+      for (let i = 0; i < 3; i++) { const r = 50 * (1 - ((p + i / 3) % 1)); ctx.beginPath(); ctx.arc(0, 0, r, 0, 7); ctx.stroke(); }
+      ctx.globalAlpha = .18 + p * .2; ctx.fillStyle = '#7a4ad0'; ctx.beginPath(); ctx.arc(0, 0, 46, 0, 7); ctx.fill();
+    } else if (e.bk === 'core' && e.castT > 0) { // 全方位の弾：回る魔法陣が広がる
+      const p = 1 - e.castT, r = 14 + p * 30;
+      ctx.translate(x, y); ctx.scale(1, .55); ctx.rotate(t * 2);
+      ctx.globalAlpha = .35 + p * .5; ctx.strokeStyle = '#ff9ad8'; ctx.lineWidth = 1.2;
+      ctx.beginPath(); ctx.arc(0, 0, r, 0, 7); ctx.stroke(); ctx.beginPath(); ctx.arc(0, 0, r * .7, 0, 7); ctx.stroke();
+      ctx.beginPath(); for (let i = 0; i < 6; i++) { const a = i / 6 * Math.PI * 2, b = (i + 2) / 6 * Math.PI * 2; ctx.moveTo(Math.cos(a) * r * .7, Math.sin(a) * r * .7); ctx.lineTo(Math.cos(b) * r * .7, Math.sin(b) * r * .7); } ctx.stroke();
+      ctx.globalAlpha = .15 + p * .2; ctx.fillStyle = '#ff5ac0'; ctx.beginPath(); ctx.arc(0, 0, r, 0, 7); ctx.fill();
+    } else if (e.bk === 'blade' && e.aimT > 0) { // 突進：進む先に赤い線（点滅しながら太くなる）
+      const L = e.dashLen, p = 1 - e.aimT / .7, on = Math.floor(t * 16) % 2 === 0;
+      ctx.translate(x, y - 6); ctx.rotate(e.dashA);
+      ctx.globalAlpha = .18 + p * .25; ctx.fillStyle = '#ff3a2a'; ctx.fillRect(0, -6, L, 12);
+      ctx.globalAlpha = on ? .9 : .5; ctx.fillStyle = '#ff6a4a'; ctx.fillRect(0, -.5, L * Math.min(1, p * 1.6), 1);
+      ctx.beginPath(); ctx.moveTo(L, -6); ctx.lineTo(L + 7, 0); ctx.lineTo(L, 6); ctx.fill();
+    }
+    ctx.restore();
+    // 鎧の巨兵の鎧：青く光る殻（鎧の残りに合わせて薄くなる）
+    if (e.bk === 'armor' && e.armor > 0) {
+      const a = e.armor / e.armorMax;
+      ctx.globalAlpha = (.18 + a * .3) * (.8 + Math.sin(t * 4) * .2); ctx.strokeStyle = '#9fd0ff'; ctx.lineWidth = 1.2;
+      ctx.beginPath(); ctx.ellipse(snap(x), snap(y) - 18, 17, 22, 0, 0, 7); ctx.stroke();
+      ctx.globalAlpha *= .3; ctx.fillStyle = '#9fd0ff'; ctx.fill(); ctx.globalAlpha = 1;
+    }
+    // すき（スタン）：頭の上を星が回る
+    if (e.stun > 0) {
+      ctx.fillStyle = '#fff4a0';
+      for (let i = 0; i < 3; i++) { const a = t * 5 + i / 3 * Math.PI * 2; ctx.fillRect(snap(x + Math.cos(a) * 9) - 1, snap(y - 42 + Math.sin(a) * 3) - 1, 2, 2); }
+    }
+  }
   const tintCache = new Map();
   G.tintFor = (s, col) => { const k = s.n; let m = tintCache.get(k); if (!m) { m = {}; tintCache.set(k, m); } if (!m[col]) m[col] = { n: G.tintCanvas(s.n, col), f: G.tintCanvas(s.f, col) }; return m[col]; };
 
@@ -625,6 +662,8 @@
       ctx.globalAlpha = .7; ctx.strokeStyle = '#ff6a4a'; ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(0, 0, r, 0, 7); ctx.stroke();
       ctx.restore();
     }
+    // 固有ボスの予兆（呼び出し・魔法陣・突進の線）
+    if (W.boss && !W.boss.dead && W.boss.bk) drawBossTell(W.boss, t);
     // 霧（未探索は黒・探索済みで視界外は暗く）
     if (W.fogDirty) updateFog(W);
     ctx.imageSmoothingEnabled = true;

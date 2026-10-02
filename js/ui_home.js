@@ -138,9 +138,10 @@
     // 出撃ボタン
     const rr = G.resumeRun;
     $('hbGoT').textContent = rr ? '続きから出撃' : '出撃';
-    const auto = !S.settings.waitHome && !G.manualStart && !G.trans ? `　${Math.max(0, G.homeT).toFixed(1)}秒後に自動出撃` : '';
+    const auto = !S.settings.waitHome && !G.manualStart && !G.trans ? `・あと${Math.max(0, Math.ceil(G.homeT))}秒` : ''; // 残り時間はボタン下のゲージでも見える
     const cp = G.checkpoint();
-    $('hbGoS').textContent = (rr ? 'B' + rr.floor + 'F から' : 'B' + cp + 'F から') + (S.maxFloor > 0 ? '　最深 B' + S.maxFloor + 'F' : '') + auto;
+    const from = rr ? rr.floor : cp;
+    $('hbGoS').textContent = 'B' + from + 'Fから' + (S.maxFloor > from ? '（最深B' + S.maxFloor + 'F）' : '') + auto;
     $('hbGo1').classList.toggle('hidden', !rr && cp <= 1);
     $('hbWait').textContent = '自動出撃 ' + (S.settings.waitHome ? 'OFF' : 'ON'); $('hbWait').classList.toggle('on', !S.settings.waitHome);
     const lr = S.lastRun;

@@ -403,7 +403,15 @@
       dead: false, deadT: 0, t: R() * 10, face: R() < .5 ? 1 : -1, wx: x, wy: y, wanderT: R() * 3, spd: d.spd * 1.25 * (o.boss ? .9 : 1) * (0.92 + R() * .16),
       name: (G.TIER_PREFIX[tier] || '') + d.n, lunge: 0, shake: 0, hpShow: 0,
     };
-    if (o.boss) e.name = '階層の主 ' + e.name;
+    if (o.boss) {
+      e.name = '階層の主 ' + e.name;
+      const K = G.bossKindAt(f);
+      if (K && K.type === type) { // 固有ボス：名前と戦い方が変わる
+        e.bk = K.id; e.name = (G.TIER_PREFIX[tier] || '') + K.n;
+        if (K.id === 'armor') { e.armorMax = e.armor = e.maxHp * .3; }
+        if (K.id === 'king') { e.maxHp = Math.round(e.maxHp * .8); } // 手下を呼ぶ分、本体は少し柔らかい
+      }
+    }
     if (o.guardian) { e.guardian = true; e.elite = true; e.name = '守護者 ' + e.name; e.r = Math.min(10, d.r * 1.3); }
     e.hp = o.hp != null ? Math.min(o.hp, e.maxHp) : e.maxHp;
     if (boxHit(e.x, e.y, e.r)) { e.x = Math.floor(x / T) * T + 8; e.y = Math.floor(y / T) * T + 8; }
@@ -493,7 +501,7 @@
       // 今回の挑戦の戦績を記録してホームで表示
       const rs = S.run && S.run.rs;
       S.prevRun = S.lastRun ? { floor: S.lastRun.floor, kills: S.lastRun.kills, start: S.lastRun.start || 1, ch: S.lastRun.ch } : null; // 結果画面の「前回との比較」用
-      S.lastRun = rs ? { floor: W.f, kills: rs.kills, items: rs.items, best: rs.best, t: Math.round(rs.t), coins: rs.coins || 0, start: (S.run && S.run.start) || 1, dmg: rs.dmg || {}, burst: rs.maxBurst || 0, bless: (S.run && S.run.bless) || {}, awk: (S.run && S.run.awk) || [], ch: S.cur } : null;
+      S.lastRun = rs ? { floor: W.f, kills: rs.kills, items: rs.items, best: rs.best, t: Math.round(rs.t), coins: rs.coins || 0, start: (S.run && S.run.start) || 1, dmg: rs.dmg || {}, taken: rs.taken || {}, takenK: rs.takenK || {}, lastHit: rs.lastHit || "", mob: rs.mob || 0, burst: rs.maxBurst || 0, bless: (S.run && S.run.bless) || {}, awk: (S.run && S.run.awk) || [], ch: S.cur } : null;
       // 中継地点の調整：始めた階から1階も進めずに力尽きたら次は1段浅く、3階以上進めたら1段深く（最深の中継地点まで）
       if (S.run && W.f) { const prog = W.f - (S.run.start || 1); if (prog <= 0) S.cpBack = (S.cpBack || 0) + 1; else if (prog >= 3) S.cpBack = Math.max(0, (S.cpBack || 0) - 1); }
       S.mode = 'home'; S.run = null; S.homeMsg = msg || '';
@@ -512,7 +520,7 @@
     G.transition(() => {
       const rs = run.rs;
       S.prevRun = S.lastRun ? { floor: S.lastRun.floor, kills: S.lastRun.kills, start: S.lastRun.start || 1, ch: S.lastRun.ch } : null; // 結果画面の「前回との比較」用
-      S.lastRun = rs ? { floor: f, kills: rs.kills, items: rs.items, best: rs.best, t: Math.round(rs.t), coins: rs.coins || 0, start: run.start || 1, dmg: rs.dmg || {}, burst: rs.maxBurst || 0, bless: run.bless || {}, awk: run.awk || [], ch: S.cur } : null;
+      S.lastRun = rs ? { floor: f, kills: rs.kills, items: rs.items, best: rs.best, t: Math.round(rs.t), coins: rs.coins || 0, start: run.start || 1, dmg: rs.dmg || {}, taken: rs.taken || {}, takenK: rs.takenK || {}, lastHit: rs.lastHit || "", mob: rs.mob || 0, burst: rs.maxBurst || 0, bless: run.bless || {}, awk: run.awk || [], ch: S.cur } : null;
       S.mode = 'home'; S.homeMsg = 'B' + f + 'F から帰還した（続きから再出撃できます）';
       G.resumeRun = run; G.manualStart = true; // 帰ってきた時は自動で出撃しない
       G.setupHome();
@@ -633,7 +641,7 @@
     H.hp = Math.min(H.st.maxHp, H.hp + v);
     if (show && H.hp - before >= 1) G.num(H.x, H.y - 36, H.hp - before, 'heal', H);
   }
-  function hurtHero(amount, sx, sy) {
+  function hurtHero(amount, sx, sy, src) {
     if (H.dead || G.trans) return;
     let dmg = amount * 60 / (60 + H.st.def) * (.9 + R() * .2);
     dmg = Math.max(1, dmg);
@@ -644,10 +652,21 @@
       if (dmg <= 0) { G.sfx('shield'); return; }
     }
     H.hp -= dmg; H.flash = .12; H.hurtT = .3; H.calmT = 0;
+    noteTaken(dmg + Math.min(0, H.hp), src);
     G.num(H.x, H.y - 36, dmg, 'hurt', H);
     G.sfx('hurt');
     if (sx != null) { const a = Math.atan2(H.y - sy, H.x - sx); moveBody(H, Math.cos(a) * 2, Math.sin(a) * 2); }
     if (H.hp <= 0) heroDie();
+  }
+  // 誰から・どんな攻撃でダメージを受けたか（結果画面の「敗因」用）
+  function noteTaken(dmg, src) {
+    const rs = S.run && S.run.rs; if (!rs || !src || !src.d) return;
+    const n = src.boss ? 'ボス ' + src.d.n : src.d.n, tk = rs.taken || (rs.taken = {});
+    tk[n] = (tk[n] || 0) + dmg;
+    (rs.takenK || (rs.takenK = {}))[n] = src.boss ? 'boss' : src.d.role;
+    rs.lastHit = n;
+    let near = 0; for (const e of W.enemies) if (!e.dead && Math.abs(e.x - H.x) < 60 && Math.abs(e.y - H.y) < 60) near++;
+    if (H.hp <= 0) rs.mob = near; // 倒れた瞬間に囲まれていた数
   }
   function heroDie() {
     H.hp = 0; H.dead = true; H.deadT = 0; H.act = null;
@@ -683,6 +702,99 @@
     e.awake = true;
     for (const o of W.enemies) if (!o.awake && !o.dead && G.dist(o.x, o.y, e.x, e.y) < 90) { o.awake = true; o.cd = .3 + R() * .8; }
   }
+  // ------------------------------------------------------------ 固有ボスの戦い方
+  // 鎧の巨兵：鎧が残っている間はダメージが半分以下しか通らず、残りは鎧を削る。砕けると数秒すきだらけ
+  function armorHit(e, dmg) {
+    e.armor -= dmg;
+    if (R() < .35) G.burst(e.x + (R() - .5) * 16, e.y - 14 - R() * 14, 3, ['#cfe6ff', '#8fa8c8'], 50, .3, 1);
+    if (e.armor > 0) return;
+    e.armor = 0; e.stun = 3.2; e.armorRe = 13; e.atk = false;
+    G.popText(e.x, e.y - 60, 'BREAK!!', '#9fd0ff', 16);
+    G.ui.callout({ text: 'BREAK!!', sub: '鎧が砕けた！ 今がチャンス', tone: 'blue', prio: 3, dur: 1.1, size: 1, flash: .3, flashCol: '#cfe6ff' });
+    G.burst(e.x, e.y - 18, 40, ['#cfe6ff', '#8fa8c8', '#ffffff', '#5a6a80'], 150, .7, 2, 160);
+    G.fxAdd({ k: 'ring', x: e.x, y: e.y, r: 50, col: '#cfe6ff', dur: .5 });
+    G.shake(6); G.sfx('boom'); H.hitstop = Math.max(H.hitstop, .12);
+  }
+  function summonMinions(e, n) {
+    let made = 0;
+    for (let k = 0; k < n * 4 && made < n; k++) {
+      const a = R() * Math.PI * 2, r = 22 + R() * 22, x = e.x + Math.cos(a) * r, y = e.y + Math.sin(a) * r * .8;
+      if (boxHit(x, y, 6) || !clearWalk(e.x, e.y, x, y, 2)) continue;
+      const m = mkEnemy(R() < .25 && e.hp < e.maxHp * .5 ? 'bat' : 'slime', x, y, {});
+      m.minion = true; m.awake = true; m.hopT = .3; m.exp = Math.round(m.exp * .3); m.seenT = 1;
+      W.enemies.push(m); made++;
+      G.burst(x, y - 6, 10, ['#c890ff', '#ffffff', '#7a4ad0'], 55, .4, 1, -20);
+    }
+    if (made) { G.sfx('wake'); G.fxAdd({ k: 'ring', x: e.x, y: e.y, r: 46, col: '#c890ff', dur: .45 }); }
+  }
+  // 戻り値：0＝いつもの動き、1＝この関数で動きを決めた（移動は呼び出し側）、2＝移動まで済ませた
+  function bossAI(e, dt, dx, dy, d) {
+    const enr = e.hp < e.maxHp * .5; // 半分を切ると激しくなる
+    if (e.stun > 0) {
+      e.stun -= dt; e.vx = G.damp(e.vx, 0, 10, dt); e.vy = G.damp(e.vy, 0, 10, dt);
+      if (R() < dt * 6) G.part(e.x + (R() - .5) * 12, e.y - 34, 0, -10, .5, '#fff4a0', 1, 0, 1);
+      return 1;
+    }
+    if (e.bk === 'armor') {
+      if (e.armor <= 0 && (e.armorRe -= dt) <= 0) { e.armor = e.armorMax * (enr ? .5 : .8); G.popText(e.x, e.y - 60, '鎧が戻った', '#9fd0ff', 10); G.sfx('shield'); G.fxAdd({ k: 'ring', x: e.x, y: e.y, r: 34, col: '#9fd0ff', dur: .4 }); }
+      return 0;
+    }
+    if (e.bk === 'king') {
+      if (e.castT > 0) { e.castT -= dt; e.vx = G.damp(e.vx, 0, 10, dt); e.vy = G.damp(e.vy, 0, 10, dt); if (e.castT <= 0) summonMinions(e, enr ? 6 : 4); return 1; }
+      e.sumT = (e.sumT == null ? 1.5 : e.sumT) - dt;
+      if (e.sumT <= 0) {
+        e.sumT = enr ? 5.5 : 7.5;
+        let alive = 0; for (const o of W.enemies) if (o.minion && !o.dead) alive++;
+        if (alive < (enr ? 12 : 8)) { e.castT = .9; e.atk = false; return 1; }
+      }
+      return 0;
+    }
+    if (e.bk === 'core') {
+      e.blinkCd = 99; // 瞬間移動はしない（その場で弾をばらまく）
+      if (e.castT > 0) {
+        e.castT -= dt; e.vx = G.damp(e.vx, 0, 10, dt); e.vy = G.damp(e.vy, 0, 10, dt);
+        if (e.castT <= 0) {
+          const n = enr ? 14 : 10, a0 = R() * Math.PI * 2;
+          for (let i = 0; i < n; i++) { const a = a0 + i / n * Math.PI * 2; W.projs.push({ k: 'orb', x: e.x + Math.cos(a) * 8, y: e.y - 17 + Math.sin(a) * 8, vx: Math.cos(a) * 52, vy: Math.sin(a) * 52, ang: a, life: 3.4, t: 0, dmg: e.atkV * .55, src: e, straight: true }); }
+          G.sfx('zap'); G.shake(2); G.fxAdd({ k: 'ring', x: e.x, y: e.y - 10, r: 40, col: '#ff9ad8', dur: .4 });
+        }
+        return 1;
+      }
+      e.ringT = (e.ringT == null ? 2.5 : e.ringT) - dt;
+      if (e.ringT <= 0 && d < 190) { e.ringT = enr ? 4.2 : 6; e.castT = 1; e.atk = false; return 1; }
+      return 0;
+    }
+    if (e.bk === 'blade') {
+      if (e.aimT > 0) {
+        e.aimT -= dt; e.vx = G.damp(e.vx, 0, 14, dt); e.vy = G.damp(e.vy, 0, 14, dt);
+        if (e.aimT <= 0) { e.goT = e.dashLen / 340; e.dashHit = false; G.sfx('dash'); }
+        return 1;
+      }
+      if (e.goT > 0) {
+        e.goT -= dt; e.vx = Math.cos(e.dashA) * 340; e.vy = Math.sin(e.dashA) * 340; e.face = e.vx > 0 ? 1 : -1;
+        if (R() < .9) G.part(e.x + (R() - .5) * 8, e.y - 6 - R() * 16, -e.vx * .05, -e.vy * .05, .3, '#ff8a6a', 1, 0, 1);
+        const hitWall = moveBody(e, e.vx * dt, e.vy * dt);
+        if (!e.dashHit && G.dist(e.x, e.y, H.x, H.y) < e.r + H.r + 8) { e.dashHit = true; hurtHero(e.atkV * 1.25, e.x, e.y, e); G.shake(4); G.fxAdd({ k: 'eslash', x: H.x, y: H.y - 10, ang: e.dashA, r: 30, dur: .2 }); }
+        if (hitWall || e.goT <= 0) { e.goT = 0; e.vx = e.vy = 0; e.stun = enr ? .8 : 1.2; G.burst(e.x, e.y, 10, ['#d8c8b0', '#ffffff'], 60, .35, 1); }
+        return 2;
+      }
+      const aim = () => { const ax = H.x - e.x, ay = H.y - e.y; e.aimT = enr ? .5 : .7; e.dashA = Math.atan2(ay, ax); e.dashLen = G.clamp(Math.hypot(ax, ay) + 50, 90, 190); };
+      if (e.backT > 0) { // 近すぎる時は後ろへ跳んで間合いを取ってから突進
+        e.backT -= dt; e.vx = Math.cos(e.backA) * 190; e.vy = Math.sin(e.backA) * 190;
+        if (moveBody(e, e.vx * dt, e.vy * dt) || e.backT <= 0) { e.backT = 0; e.vx = e.vy = 0; aim(); }
+        return 2;
+      }
+      e.dashT = (e.dashT == null ? 2 : e.dashT) - dt;
+      if (e.dashT <= 0 && d < 160 && losPx(e.x, e.y - 6, H.x, H.y - 6)) {
+        e.dashT = enr ? 3 : 4.5; e.atk = false;
+        if (d < 50) { e.backT = .3; e.backA = Math.atan2(-dy, -dx); G.burst(e.x, e.y, 6, ['#d8c8b0'], 40, .3, 1); }
+        else aim();
+        return 1;
+      }
+      return 0;
+    }
+    return 0;
+  }
   // 敵へのダメージ。proc=true の攻撃だけが付与効果を発動（派生攻撃からの無限再発動を防ぐ）
   function hitEnemy(e, base, o) {
     if (e.dead) return 0;
@@ -692,6 +804,8 @@
     if (o.canCrit !== false && R() < H.st.crit) { dmg *= H.st.critd; crit = true; }
     if (o.src === 'skill' && H.act && H.act.strideMul) dmg *= H.act.strideMul; // 祝福「狩人の歩み」
     dmg *= (.92 + R() * .16) * (e.d.armor || 1);
+    if (e.stun > 0) dmg *= 1.5; // 固有ボスのすき（鎧が砕けた・突進の後）
+    else if (e.bk === 'armor' && e.armor > 0 && o.src !== 'burn' && o.src !== 'poison') armorHit(e, dmg), dmg *= .45;
     dmg = Math.max(1, dmg);
     e.hp -= dmg; e.hpShow = 2.5;
     // 結果画面の「何が強かったか」：攻撃の出どころごとのダメージ
@@ -1738,23 +1852,23 @@
     if (df.role === 'caster') {
       // 魔導士：ゆっくり追尾する火の玉
       const a = Math.atan2(H.y - 13 - (e.y - 16), H.x - e.x);
-      W.projs.push({ k: 'orb', x: e.x + e.face * 9, y: e.y - 17, vx: Math.cos(a) * 70, vy: Math.sin(a) * 70, ang: a, life: 2.6, t: 0, dmg: e.atkV });
+      W.projs.push({ k: 'orb', x: e.x + e.face * 9, y: e.y - 17, vx: Math.cos(a) * 70, vy: Math.sin(a) * 70, ang: a, life: 2.6, t: 0, dmg: e.atkV, src: e });
       G.sfx('shoot');
     } else if (df.role === 'ranged') {
       const a = Math.atan2(H.y - 12 - (e.y - 12), H.x - e.x) + (R() - .5) * .12;
-      W.projs.push({ k: 'arrow', x: e.x, y: e.y - 12, vx: Math.cos(a) * 160, vy: Math.sin(a) * 160, ang: a, life: 1.4, t: 0, dmg: e.atkV });
+      W.projs.push({ k: 'arrow', x: e.x, y: e.y - 12, vx: Math.cos(a) * 160, vy: Math.sin(a) * 160, ang: a, life: 1.4, t: 0, dmg: e.atkV, src: e });
       G.sfx('shoot');
     } else if (df.role === 'heavy' || (e.boss && e.type === 'golem')) {
       const r = e.boss ? 40 : 26;
       G.fxAdd({ k: 'ring', x: e.x + e.face * 6, y: e.y, r, dur: .35, col: '#e0c8a0' });
       G.burst(e.x + e.face * 6, e.y, 14, ['#b8a888', '#807060'], 70, .5, 1, 100);
       G.shake(e.boss ? 5 : 3); G.sfx('quake');
-      if (G.dist(H.x, H.y, e.x + e.face * 6, e.y) < r + H.r) hurtHero(e.atkV, e.x, e.y);
+      if (G.dist(H.x, H.y, e.x + e.face * 6, e.y) < r + H.r) hurtHero(e.atkV, e.x, e.y, e);
     } else {
       e.lunge = .15;
       const reach = df.range + H.r + e.r + (e.boss ? 14 : 5);
       if (d <= reach) {
-        hurtHero(e.atkV, e.x, e.y);
+        hurtHero(e.atkV, e.x, e.y, e);
         G.burst(H.x, H.y - 8, 5, ['#ff8a70', '#ffffff'], 50, .3, 1);
       }
       if (e.boss) { G.fxAdd({ k: 'eslash', x: e.x, y: e.y - 10, ang: Math.atan2(dy, dx), r: 34, dur: .2 }); G.shake(3); }
@@ -1806,6 +1920,7 @@
       if (H.dead) { e.vx = G.damp(e.vx, 0, 6, dt); e.vy = G.damp(e.vy, 0, 6, dt); continue; }
       if (Math.abs(dx) > 2) e.face = dx > 0 ? 1 : -1;
       const df = e.d;
+      if (e.bk) { const r = bossAI(e, dt, dx, dy, d); if (r) { if (r === 1) moveBody(e, e.vx * dt, e.vy * dt); continue; } }
       if (e.atk) {
         e.atkT += dt;
         e.vx = G.damp(e.vx, 0, 14, dt); e.vy = G.damp(e.vy, 0, 14, dt);
@@ -1885,15 +2000,17 @@
       let dead = p.t >= p.life;
       if (p.k === 'arrow') {
         if (solid(nx, ny + 12)) { dead = true; G.burst(p.x, p.y, 3, ['#d8d0c0'], 30, .2, 1); }
-        else if (!H.dead && G.dist(nx, ny, H.x, H.y - 12) < 10) { hurtHero(p.dmg, p.x, p.y); dead = true; }
+        else if (!H.dead && G.dist(nx, ny, H.x, H.y - 12) < 10) { hurtHero(p.dmg, p.x, p.y, p.src); dead = true; }
       } else if (p.k === 'orb') {
         // 火の玉：勇者の方へ少しずつ曲がる。斬撃で打ち消せる
-        const ta = Math.atan2(H.y - 13 - p.y, H.x - p.x), da = G.angDiff(p.ang, ta);
-        p.ang += G.clamp(da, -1.4 * dt, 1.4 * dt);
-        p.vx = Math.cos(p.ang) * 72; p.vy = Math.sin(p.ang) * 72;
+        if (!p.straight) { // 魔力の核がばらまく弾はまっすぐ飛ぶ
+          const ta = Math.atan2(H.y - 13 - p.y, H.x - p.x), da = G.angDiff(p.ang, ta);
+          p.ang += G.clamp(da, -1.4 * dt, 1.4 * dt);
+          p.vx = Math.cos(p.ang) * 72; p.vy = Math.sin(p.ang) * 72;
+        }
         if (R() < .8) G.part(p.x, p.y, (R() - .5) * 10, -8, .35, R() < .5 ? '#ff9a4a' : '#ffe0a0', 1, -10, 2);
         if (solid(nx, ny + 15)) { dead = true; G.burst(p.x, p.y, 8, ['#ff9a4a', '#ffe0a0'], 50, .3, 1); }
-        else if (!H.dead && G.dist(nx, ny, H.x, H.y - 12) < 9) { hurtHero(p.dmg, p.x, p.y); dead = true; G.burst(p.x, p.y, 12, ['#ff9a4a', '#ffe0a0', '#ffffff'], 70, .35, 1); }
+        else if (!H.dead && G.dist(nx, ny, H.x, H.y - 12) < 9) { hurtHero(p.dmg, p.x, p.y, p.src); dead = true; G.burst(p.x, p.y, 12, ['#ff9a4a', '#ffe0a0', '#ffffff'], 70, .35, 1); }
         else if (H.act && H.act.k === 'atk' && G.dist(nx, ny, H.x, H.y - 12) < H.st.reach + 4) { dead = true; G.burst(p.x, p.y, 10, ['#ffffff', '#ffe0a0'], 70, .3, 1); G.sfx('slash2'); }
       } else if (p.k === 'wave') {
         if (solid(nx, ny + 6)) { dead = true; G.burst(p.x, p.y, 10, ['#9ef0ff', '#ffffff'], 60, .35, 1); }

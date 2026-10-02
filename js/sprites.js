@@ -496,13 +496,43 @@
   G.ICON = {};
   G.ICONW = {};
   for (const k in ICONS) { G.ICON[k] = build(ICONS[k], IC_PAL); G.ICONW[k] = hi(ICONS[k], IC_PAL); }
+  // 装備の種類ごとのアイコン（12×12）。同じ部位でも見た目で区別できるように
+  const BI_PAL = Object.assign({}, IC_PAL, {
+    S: '#d8dde6', L: '#d8a066', l: '#9a6236', c: '#9ff0ff', B: '#3a7ad8', p: '#b07cff', P: '#6a3cc0', R: '#b02a2a', y: '#fff3a8',
+    E: '#6fd878', e: '#2f8a3c', o: '#e08a48', O: '#a0522a', m: '#ffe46a',
+  });
+  const BICONS = {
+    'ショートソード': ['............', '..........W.', '.........WWv', '........WWv.', '.......WWv..', '......WWv...', '...G.WWv....', '....GWv.....', '....nG......', '...nn.G.....', '..nn........', '............'],
+    'ブロードソード': ['.........WWW', '........WWWv', '.......WWWv.', '......WWWv..', '.....WWWv...', '....WWWv....', '.GG.WWv.....', '..GGWv......', '..ngGG......', '.nn..gG.....', 'nn..........', '............'],
+    'レイピア': ['...........W', '..........Wv', '.........Wv.', '........Wv..', '.......Wv...', '......Wv....', '..GGGWv.....', '..G.Gv......', '..GGGn......', '....n.......', '...nn.......', '..nn........'],
+    'バスタードソード': ['..........WW', '.........WWv', '........WWv.', '.......WWv..', '......WWv...', '.....WWv....', '.GG.WWv.....', '.gGGWv......', '...GGg......', '..nn.gG.....', '.nn.........', 'Gn..........'],
+    'ルーンブレード': ['..........cc', '.........cWc', '........cWb.', '.......cWb..', '......cpb...', '.....cWb....', '.pp.cWb.....', '..ppcb......', '..nPpp......', '.nn..pP.....', 'nn..........', 'p...........'],
+    '竜牙の剣': ['..........y.', '.........yW.', '........yWW.', '.......WWWv.', '......WWWv..', '.....WWWv...', '.RR.WWv.....', '.RRRWv......', '...RRR......', '..nn..R.....', '.nn.........', 'Rn..........'],
+    '革の帽子': ['............', '............', '....LLLL....', '...LLLLLL...', '..LLyLLLLL..', '..LLLLLLLL..', '..llllllll..', '.LLLLLLLLLL.', 'llllllllllll', '............', '............', '............'],
+    '鉄の兜': ['............', '....vvvv....', '...vWWvvv...', '..vWWvvvvx..', '..vWvvvvvx..', '..vvvvvvvx..', '..xxxxxxxx..', '..vxkkkkvx..', '..vx....vx..', '..vx....vx..', '...x....x...', '............'],
+    '羽根飾りの帽子': ['.........r..', '........rrr.', '.......rrr..', '......rrr...', '....NNrNN...', '...NNNNNNN..', '...NgGGgNN..', '...NNNNNNN..', '.NNNNNNNNNN.', 'nnnnnnnnnnnn', '............', '............'],
+    '騎士の兜': ['.....rr.....', '....rrrr....', '.....GG.....', '...vvvvvv...', '..vWWvvvvx..', '..vWGGGGvx..', '..vWvvvvvx..', '..GGGGGGGG..', '..vxkkkkvx..', '..vx.kk.vx..', '..vx....vx..', '...x....x...'],
+    '旅人の服': ['............', '..LL....LL..', '.LLLllllLLL.', '.LLLLLLLLLL.', '..LLLLLLLL..', '..LLLyyLLL..', '..NNNGGNNN..', '..LLLLLLLL..', '..LLLLLLLL..', '..LLl..lLL..', '..lll..lll..', '............'],
+    '革の鎧': ['............', '..nn....nn..', '.nNNnnnnNNn.', '.nNNNNNNNNn.', '..nNNGGNNn..', '..nNNNNNNn..', '..nNNNNNNn..', '..nNnnnnNn..', '..nNNNNNNn..', '..nnn..nnn..', '............', '............'],
+    '鎖帷子': ['............', '..xx....xx..', '.xvvxxxxvvx.', '.xvSvSvSvSx.', '..xvSvSvSx..', '..xSvSvSvx..', '..xvSvSvSx..', '..xSvSvSvx..', '..xvSvSvSx..', '..xxx..xxx..', '............', '............'],
+    '騎士の鎧': ['............', '.vvv....vvv.', 'vWWvvGGvvWWv', 'vWvvWWWWvvWv', '.xvWWWWWWvx.', '..vWWGGWWv..', '..vWWWWWWv..', '..GGGGGGGG..', '..vWWvvWWv..', '..vvx..xvv..', '............', '............'],
+    '革のブーツ': ['............', '...NNNN.....', '...NNNN.....', '...NNNN.....', '...NGGN.....', '...NNNN.....', '...NNNNNNN..', '...NNNNNNNN.', '...nnnnnnnn.', '............', '............', '............'],
+    '鉄の脚甲': ['............', '...vvvv.....', '...WvvvX....', '...WvvvX....', '...xxxxx....', '...WvvvX....', '...WvvvvvvX.', '...WvvvvvvvX', '...xxxxxxxxx', '............', '............', '............'],
+    '疾風の靴': ['............', 'W..EEEE.....', 'WW.EEEE.....', '.WWEyEE.....', '..WEEEE.....', '...EEEE.....', '...EEEEEEE..', '...EEEEEEEE.', '...eeeeeeee.', '............', '............', '............'],
+    '銅の指輪': ['............', '.....bb.....', '....bWbb....', '....bbbb....', '...oOOOOo...', '..oO....Oo..', '..o......o..', '..o......o..', '..oO....Oo..', '...oOOOOo...', '............', '............'],
+    '銀のお守り': ['....x..x....', '.....xx.....', '.....xx.....', '....SSSS....', '...SWWWWS...', '...SWbbWS...', '...SWbbWS...', '...SWWWWS...', '...SWrrWS...', '...SSSSSS...', '....r..r....', '....r..r....'],
+    '星のペンダント': ['..x......x..', '...x....x...', '....x..x....', '.....xx.....', '.....mm.....', '....mmmm....', '.mmmmyymmmm.', '..mmyyyymm..', '...mmyymm...', '...mm..mm...', '..mm....mm..', '............'],
+    '古代の腕輪': ['............', '....gGGg....', '..gGEGGEGg..', '.gGGggggGGg.', '.GGg....gGG.', '.GG......GG.', '.GG......GG.', '.GGg....gGG.', '.gGGggggGGg.', '..gGGEEGGg..', '....gGGg....', '............'],
+  };
+  for (const k in BICONS) BICONS[k] = build(BICONS[k], Object.assign({ X: '#4a5262' }, BI_PAL));
   const iconUrlCache = {};
-  G.iconURL = function (slot) {
-    if (iconUrlCache[slot]) return iconUrlCache[slot];
-    const s = G.ICON[slot], c = G.canvas(36, 36), x = c.getContext('2d');
+  G.iconURL = function (slot, base) {
+    const key = base && BICONS[base] ? base : slot;
+    if (iconUrlCache[key]) return iconUrlCache[key];
+    const s = BICONS[key] || G.ICON[slot], sz = BICONS[key] ? 14 : 12, c = G.canvas(sz * 3, sz * 3), x = c.getContext('2d');
     x.imageSmoothingEnabled = false;
-    x.drawImage(s, Math.floor((12 - s.width) / 2) * 3, Math.floor((12 - s.height) / 2) * 3, s.width * 3, s.height * 3);
-    return iconUrlCache[slot] = c.toDataURL();
+    x.drawImage(s, Math.floor((sz - s.width) / 2) * 3, Math.floor((sz - s.height) / 2) * 3, s.width * 3, s.height * 3);
+    return iconUrlCache[key] = c.toDataURL();
   };
 
   // 技アイコン

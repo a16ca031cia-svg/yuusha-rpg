@@ -189,6 +189,7 @@ body.titleMode #hud{visibility:hidden}
 .gBig{min-width:96px;padding:6px 10px;font-size:16px;line-height:1.2}
 .rates{border-collapse:collapse;font-size:12px;width:100%}
 .rates th,.rates td{border:1px solid var(--line);padding:3px 6px;text-align:left}
+.rates th{white-space:nowrap}
 .rates td:last-child{text-align:right;font-variant-numeric:tabular-nums}
 /* ---------- ガチャ演出（全画面） ---------- */
 #gfx{position:fixed;inset:0;z-index:40;background:radial-gradient(ellipse at 50% 60%,#2a1a34,#07060b 70%);overflow:hidden;display:flex;align-items:center;justify-content:center}
@@ -444,7 +445,7 @@ button:active:not(:disabled){transform:translateY(1px) scale(.97);filter:brightn
 .hubSmall{border-radius:20px;padding:6px 14px}
 .hubGo{min-width:220px;padding:10px 26px;border-radius:12px;font-size:24px;letter-spacing:6px;display:flex;flex-direction:column;align-items:center;line-height:1.15;
   background:linear-gradient(#ff8a4a,#c83a1e 55%,#8a2010);border:3px solid #ffd0a0;box-shadow:0 4px 0 #3a0a04,0 0 22px rgba(255,120,60,.7);text-shadow:0 2px 0 #6a1404;animation:pulseBtn 1.6s ease-in-out infinite}
-.hubGo small{font-size:11px;letter-spacing:1px;text-shadow:none;opacity:.95}
+.hubGo small{font-size:11px;letter-spacing:1px;text-shadow:none;opacity:.95;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 @media (max-width:760px){
   #hub{grid-template-columns:1fr auto;grid-template-rows:auto auto 1fr auto;gap:6px}
   .hubTop{grid-column:1/-1}
@@ -584,7 +585,7 @@ body.touch #title .tNote{display:none}
   /* 画面（装備・技・所持品・設定）は全画面にして縦に並べ、全体をスクロール */
   .win{width:100vw;height:100%;border-radius:0;border-width:0;padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom)}
   .whead{padding:6px 8px}
-  .tabs{flex-wrap:nowrap;gap:4px;overflow-x:auto;scrollbar-width:none;flex:1;min-width:0} .tabs::-webkit-scrollbar{display:none} .tabs button{padding:5px 8px;flex:none} /* タブは1列（横にスクロール） */
+  .tabs{flex-wrap:nowrap;gap:3px;overflow-x:auto;scrollbar-width:none;flex:1;min-width:0} .tabs::-webkit-scrollbar{display:none} .tabs button{padding:6px 2px;flex:1 1 0;min-width:44px;font-size:13px;white-space:nowrap} /* タブは1列。スマホ幅でも全部見えるように均等に縮める */
   #mClose{min-width:44px}
   #mBody{flex-direction:column;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:8px}
   #mBody>.col{width:auto!important;flex:none!important;max-width:none!important}
@@ -619,9 +620,7 @@ body.touch #title .tNote{display:none}
 .tEmbers{position:absolute;inset:0}
 .tEmbers .em{position:absolute;bottom:-10px;width:calc(4px * var(--s));height:calc(4px * var(--s));border-radius:50%;background:#ffb060;box-shadow:0 0 8px 2px rgba(255,140,60,.8);animation:emUp linear infinite;opacity:0}
 @keyframes emUp{0%{transform:translate(0,0);opacity:0}10%{opacity:1}100%{transform:translate(var(--dx),-105vh);opacity:0}}
-.tMain.shine{position:relative;overflow:hidden}
-.tMain.shine::after{content:'';position:absolute;top:0;bottom:0;width:30%;left:-40%;background:linear-gradient(100deg,transparent,rgba(255,255,255,.55),transparent);transform:skewX(-20deg);animation:tShine 4s ease-in-out infinite 1s;mix-blend-mode:overlay}
-@keyframes tShine{0%{left:-40%}35%,100%{left:130%}}
+/* タイトルの光：文字の形だけを斜めの光が通る（箱が光って見えないように、同じ文字を重ねて光を文字で切り抜く） */.tMain.shine{position:relative}.tMain.shine::after{content:attr(data-t);position:absolute;inset:0;color:transparent;text-shadow:none;pointer-events:none;background:linear-gradient(100deg,transparent 42%,rgba(255,255,255,.95) 50%,transparent 58%) no-repeat;background-size:250% 100%;background-position:120% 0;-webkit-background-clip:text;background-clip:text;animation:tShine 4s ease-in-out infinite 1s}@keyframes tShine{0%{background-position:120% 0}35%,100%{background-position:-20% 0}}
 .tStart{animation:tPulse 1.6s ease-in-out infinite!important}
 @keyframes tPulse{50%{opacity:.35;transform:scale(.97)}}
 /* ホーム：ゆっくり舞う光の粒 */
@@ -707,3 +706,13 @@ body.touch #title .tNote{display:none}
 .rrNew{border-color:#7fff8a!important;background:rgba(127,255,138,.07)}
 .rrArrow{font-size:20px;color:var(--gold)}
 .rrRow.lockd{opacity:.6;cursor:default}
+/* 結果画面：敗因と対策 */
+.rsCause{margin-top:8px;padding:8px 10px;border-radius:8px;background:rgba(160,40,40,.16);border:1px solid rgba(255,110,90,.35);display:flex;flex-direction:column;gap:3px}
+.rsCH{font-size:14px;color:#ffb4a0}.rsCH b{color:#ffd6c8}
+.rsCause .small b{color:#ffe0a0}
+.rsPol{align-self:flex-start;margin-top:4px;padding:5px 12px;font-size:13px;border-radius:8px;background:linear-gradient(#3e5f86,#2a405e);border-color:#7fb0e8}
+.rsPol:disabled{opacity:.75;background:#25422e;border-color:#6fd878}
+/* 鎧の巨兵：鎧ゲージ（HPの下の細い青いバー） */
+#bossBar .bar.arm{height:5px;margin-top:2px}
+#bossArmFill{height:100%;background:linear-gradient(#cfe6ff,#5a8ac8);transition:width .15s}
+#bossWarn .bwSub b{color:#fff0a0}#bossWarn .bwD{font-size:.8em;opacity:.85}

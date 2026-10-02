@@ -155,6 +155,30 @@
     return h;
   }
 
+  // 敗因：一番ダメージを受けた相手と、次にどうすればよいか（1タップで育成方針を変えられる）
+  const ROLE_TIP = {
+    boss: ['ボスの攻撃に押し切られた', 'HP・防御を上げると耐えられます', 'safe'],
+    ranged: ['離れた所からの矢に削られた', '移動速度や攻撃範囲を上げて先に倒そう', 'mob'],
+    caster: ['魔導士の火の玉に削られた', '火の玉は斬って消せます。攻撃速度を上げよう', 'mob'],
+    heavy: ['ゴーレムの重い一撃を受けた', '防御を上げるとダメージを大きく減らせます', 'safe'],
+    swarm: ['群れに囲まれて削られた', '範囲攻撃（連鎖雷・撃破爆発）でまとめて倒そう', 'mob'],
+    fast: ['素早い敵に翻弄された', '攻撃速度や攻撃範囲を上げよう', 'mob'],
+    melee: ['近くの敵との殴り合いに負けた', '攻撃力と防御のバランスを上げよう', 'auto'],
+  };
+  function cause(lr) {
+    const tk = Object.entries(lr.taken || {}), tot = tk.reduce((a, b) => a + b[1], 0);
+    const coin = G.S.coins >= G.GACHA.single ? `コインが${G.S.coins.toLocaleString()}枚あります。ガチャで装備を手に入れて強くなろう！` : '敵を倒してコインを集め、ガチャで装備や仲間を手に入れて強くなろう。';
+    if (!tot) return `<div class="small" style="margin-top:6px">ヒント：${coin}</div>`;
+    tk.sort((a, b) => b[1] - a[1]);
+    const [n, v] = tk[0], role = (lr.takenK || {})[n] || 'melee', mob = (lr.mob || 0) >= 5;
+    const tip = mob && role !== 'boss' ? ['敵に囲まれて倒れた（' + lr.mob + '体）', '範囲攻撃でまとめて倒すのがおすすめ', 'mob'] : ROLE_TIP[role] || ROLE_TIP.melee;
+    const pol = tip[2], curPol = G.S.settings.eqPolicy || 'auto';
+    return `<div class="rsCause"><div class="rsCH">敗因：<b>${esc(tip[0])}</b></div>
+      <div class="small">一番ダメージを受けた相手：<b>${esc(n)}</b>（受けたダメージの${Math.round(v / tot * 100)}%）${lr.lastHit && lr.lastHit !== n ? '／とどめ：' + esc(lr.lastHit) : ''}</div>
+      <div class="small">対策：${esc(tip[1])}。${coin}</div>
+      ${pol !== curPol && G.EQ_POLICY[pol] ? `<button class="rsPol" data-pol="${pol}">育成方針を「${G.EQ_POLICY[pol].n}」にする</button>` : ''}</div>`;
+  }
+
   // ---------------------------------------------------------- 探索の結果
   let prevMax = 0, lastRunSeen = null, inited = false;
   const depart0 = G.depart;
@@ -173,11 +197,13 @@
             <div><span>レベル</span><b>${prevLv && prevLv < G.S.level ? 'Lv' + prevLv + '→' : 'Lv'}${G.S.level}</b></div><div><span>時間</span><b>${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}</b></div>
           </div>
           ${breakdown(lr)}
-          ${dead ? `<div class="small" style="margin-top:6px">${G.S.coins >= G.GACHA.single ? 'ヒント：コインが' + G.S.coins.toLocaleString() + '枚あります。ガチャで装備を手に入れて強くなろう！' : 'ヒント：敵を倒してコインを集め、ガチャで装備や仲間を手に入れて強くなろう。'}</div>` : ''}
+          ${dead ? cause(lr) : ''}
           ${G.S.coins >= G.GACHA.single ? `<div class="lbBtn"><button id="rsGacha" class="gachaBtn big">ガチャを引く（${Math.floor(G.S.coins / G.GACHA.single)}回分）</button></div>` : ''}
           <div class="lbBtn">${G.resumeRun ? '<button id="rsGo" class="primary big">続きから出撃</button>' : `<button id="rsGo" class="primary big">B${G.checkpoint()}Fから出撃</button>`}<button id="rsOk">ホームへ</button></div>`;
         $('rsGo').onclick = () => { closeAll(); G.depart(!!G.resumeRun, G.checkpoint()); };
         $('rsOk').onclick = close;
+        const pb = b.querySelector('[data-pol]');
+        if (pb) pb.onclick = () => { G.S.settings.eqPolicy = pb.dataset.pol; if (G.S.settings.autoEquip && G.autoEquip) G.autoEquip(); G.save(); G.sfx('lvup'); pb.disabled = true; pb.textContent = '育成方針を「' + G.EQ_POLICY[pb.dataset.pol].n + '」にしました'; };
         // 数字が0から増えていく
         const cells = [...b.querySelectorAll('[data-cnt]')], t0 = performance.now();
         const tick = () => { const p = Math.min(1, (performance.now() - t0) / 900), e = 1 - Math.pow(1 - p, 3); for (const c of cells) c.textContent = (c.dataset.pre || '') + Math.round(+c.dataset.cnt * e).toLocaleString(); if (p < 1 && document.body.contains(b)) requestAnimationFrame(tick); };

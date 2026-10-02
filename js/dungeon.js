@@ -130,7 +130,7 @@
       }
     }
     if (f % 5 === 0) {
-      enemies.push({ type: f >= 10 && f % 10 === 0 ? 'golem' : 'goblin', x: far.cx * T + 8, y: (far.cy - 1) * T + 8, boss: true });
+      enemies.push({ type: G.bossKindAt(f).type, x: far.cx * T + 8, y: (far.cy - 1) * T + 8, boss: true }); // 階層の主（種類は階ごとに決まる）
     }
     // 宝箱
     const chests = [];
