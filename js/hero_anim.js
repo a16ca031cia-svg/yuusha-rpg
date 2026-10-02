@@ -310,8 +310,9 @@
   //   16コマ。部位ごとに固まりのまま1ドットずつ、時間をずらして動かす（波のようにゆがめない）
   //   体が1ドット沈む → 1コマ遅れて頭 → 髪先が左右へ1ドット。マントは小さくはためく。剣の光が流れる
   POSES.home = Array.from({ length: 16 }, (_, i) => {
-    const on = (a, b) => i >= a && i <= b ? 1 : 0, body = on(5, 12), head = on(6, 13);
-    return { by: body, hy: head - body, sway: on(2, 7) - on(10, 15), cape: { amp: .45, ph: i / 16 * TAU, st: 0 }, glint: i >= 4 && i <= 11 ? (i - 4) / 7 : null };
+    // 動くのは頭（まるごと1ドット）と剣（手ごと1ドット・少し傾く）だけ。体・髪・マントは止めておく
+    const on = (a, b) => i >= a && i <= b ? 1 : 0;
+    return { by: 0, hy: -on(5, 12), hand: { x: 0, y: -on(3, 10) }, rot: Math.round(Math.sin(i / 16 * TAU) * 2), cape: { amp: 0, ph: 0, st: 0 }, glint: i >= 4 && i <= 11 ? (i - 4) / 7 : null };
   });
   POSES.homeX = POSES.home.map(p => Object.assign({}, p, { eye: 2 }));
   POSES.homeB = POSES.home.map(p => Object.assign({}, p, { eye: 1 })); // まばたき

@@ -209,7 +209,7 @@
     //   胸から上が上がる → 1コマ遅れて頭 → 髪の付け根側 → 毛先、の順に動く。武器は手と一緒に上がり、少し傾く
     if (set === 'home') return Array.from({ length: 16 }, (_, i) => {
       const on = (a, b) => i >= a && i <= b ? 1 : 0;
-      return { rigid: true, chest: on(3, 10), hy: -on(4, 11), wy: -on(3, 10), wr: 1.6 * Math.sin(i / 16 * TAU), hairA: [on(5, 12), 0], hairB: [on(7, 14), -on(9, 13)], fill: true };
+      return { rigid: true, chest: 0, hy: -on(5, 12), wy: -on(3, 10), wr: 1.6 * Math.sin(i / 16 * TAU), fill: true }; // 動くのは頭（まるごと）と武器だけ。体・髪は止める
     });
     if (set === 'idle') return Array.from({ length: 8 }, (_, i) => { const q = i / 8 * TAU; return { by: [0, 0, 0, 1, 1, 1, 1, 0][i], hy: [0, 0, 0, -1, 0, 0, 0, 1][i], wy: [0, 0, 0, 1, 1, 1, 1, 0][i], wr: Math.sin(q) * 2, famp: .9, fph: q, fill: true }; });
     // 攻撃：剣・刀は振りかぶって（体の後ろ）振り下ろす。杖は掲げてから前へ振る
