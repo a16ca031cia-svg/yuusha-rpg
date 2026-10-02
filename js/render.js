@@ -499,6 +499,7 @@
       const sc = big * pop;
       const w = G.numWidth(str) * sc;
       let x = snap(n.x + n.dx * G.easeOut(Math.min(1, n.t / .4)) - w / 2), y = snap(n.y - up);
+      if (G.cam && G.VW) { const l = G.cam.x - G.VW / 2 + 3, r = G.cam.x + G.VW / 2 - 3 - w; if (r > l) x = snap(G.clamp(x, l, r)); } // 画面のふちで見切れないように
       ctx.globalAlpha = alpha;
       for (const ch of str) {
         const g = dg[ch]; if (!g) continue;

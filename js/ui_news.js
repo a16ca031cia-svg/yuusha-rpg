@@ -12,14 +12,18 @@
     return fetch('news.json?t=' + Date.now(), { cache: 'no-store' }).then(r => r.json()).then(list => {
       if (!Array.isArray(list)) return;
       G.NEWS = list.slice().sort((a, b) => b.id - a.id).slice(0, MAX);
-      // はじめて遊ぶ人には、始める前のお知らせ（開発の更新履歴）を「新着」にしない。前から遊んでいる人は全部が新着
-      const S = G.S;
-      if (S && S.newsSeen === -1) S.newsSeen = S.stats && S.stats.runs === 0 && S.level <= 1 ? (G.NEWS.length ? G.NEWS[0].id : 0) : 0;
-      refreshBadge();
+      settle(); refreshBadge();
     }).catch(() => { });
   };
   const latest = () => G.NEWS.length ? G.NEWS[0].id : 0;
-  const unread = () => G.S ? G.NEWS.filter(n => n.id > (G.S.newsSeen || 0)).length : 0;
+  // はじめて遊ぶ人には、始める前のお知らせ（開発の更新履歴）を「新着」にしない。前から遊んでいる人は全部が新着
+  //   起動した時点で決めておく（-1＝まだ決めていない、-2＝はじめての人でお知らせの読み込み待ち）。読み込みの早さで結果が変わらないように
+  function settle() {
+    const S = G.S; if (!S) return;
+    if (S.newsSeen === -1) S.newsSeen = S.stats && S.stats.runs === 0 && S.level <= 1 ? -2 : 0;
+    if (S.newsSeen === -2 && G.NEWS.length) S.newsSeen = latest();
+  }
+  const unread = () => { if (!G.S) return 0; settle(); return G.S.newsSeen < 0 ? 0 : G.NEWS.filter(n => n.id > G.S.newsSeen).length; };
   function refreshBadge() {
     const b = $('hbNews'); if (!b) return;
     const n = unread(); b.classList.toggle('badge', n > 0); b.dataset.n = n > 0 ? 'NEW' : '';

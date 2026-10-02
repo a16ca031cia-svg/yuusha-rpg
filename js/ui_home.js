@@ -103,7 +103,7 @@
     const S = G.S, H = G.hero; if (!S || !H || !H.st) return;
     const c = S.cur, C = G.CHARS[c];
     $('hbLv').textContent = S.level; $('hbName').textContent = C.n; $('hbPow').textContent = G.fmtBig(G.powerOf(H.st));
-    $('hbCoin').textContent = S.coins.toLocaleString(); $('hbForge').textContent = S.mats.forge.toLocaleString(); $('hbSoul').textContent = S.mats.soul;
+    $('hbForge').textContent = S.mats.forge.toLocaleString(); $('hbSoul').textContent = S.mats.soul;
     $('hbCName').textContent = C.n; $('hbEl').textContent = C.gacha ? 'UR　' + C.el : C.sub; $('hbEl').classList.toggle('ur', !!C.gacha);
     $('hbStar').innerHTML = '★'.repeat(G.curStar()) + (C.gacha ? '<span class="dimst">' + '★'.repeat(5 - G.curStar()) + '</span>' : '');
     const art = C.gacha && S.settings.homeView !== 'sd';

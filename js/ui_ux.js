@@ -87,10 +87,12 @@
     const rec = lr.floor > prevMax && prevMax > 0, t = lr.t || 0, dead = /力尽き/.test(msg || '');
     show({
       key: 'result', title: dead ? '探索失敗…' : '探索結果', cls: dead ? 'result dead' : 'result', render(b) {
-        b.innerHTML = `${rec ? '<div class="rsRec">最深記録 更新！</div>' : ''}<div class="rsMsg">${esc(msg || '')}</div>
+        // ランク：何階進めたか・最大コンボで決める
+        const gain = lr.floor - (lr.start || 1), rank = gain >= 10 || lr.best >= 150 ? 'S' : gain >= 6 || lr.best >= 80 ? 'A' : gain >= 3 || lr.best >= 30 ? 'B' : 'C';
+        b.innerHTML = `<div class="rsTop"><div class="rsRank r${rank}">${rank}</div><div>${rec ? '<div class="rsRec">最深記録 更新！</div>' : ''}<div class="rsMsg">${esc(msg || '')}</div><div class="small">B${lr.start || 1}F → B${lr.floor}F（${Math.max(0, gain)}階 進んだ）</div></div></div>
           <div class="rsGrid">
-            <div><span>到達</span><b>B${lr.floor}F</b></div><div><span>撃破</span><b>${lr.kills}</b></div>
-            <div><span>最大コンボ</span><b>${lr.best}</b></div><div><span>コイン</span><b class="gold">+${(lr.coins || 0).toLocaleString()}</b></div>
+            <div><span>到達</span><b>B${lr.floor}F</b></div><div><span>撃破</span><b data-cnt="${lr.kills}">0</b></div>
+            <div><span>最大コンボ</span><b data-cnt="${lr.best}">0</b></div><div><span>コイン</span><b class="gold" data-cnt="${lr.coins || 0}" data-pre="+">+0</b></div>
             <div><span>レベル</span><b>${prevLv && prevLv < G.S.level ? 'Lv' + prevLv + '→' : 'Lv'}${G.S.level}</b></div><div><span>時間</span><b>${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}</b></div>
           </div>
           ${dead ? `<div class="small" style="margin-top:6px">${G.S.coins >= G.GACHA.single ? 'ヒント：コインが' + G.S.coins.toLocaleString() + '枚あります。ガチャで装備を手に入れて強くなろう！' : 'ヒント：敵を倒してコインを集め、ガチャで装備や仲間を手に入れて強くなろう。'}</div>` : ''}
@@ -98,6 +100,10 @@
           <div class="lbBtn">${G.resumeRun ? '<button id="rsGo" class="primary big">続きから出撃</button>' : `<button id="rsGo" class="primary big">B${G.checkpoint()}Fから出撃</button>`}<button id="rsOk">ホームへ</button></div>`;
         $('rsGo').onclick = () => { closeAll(); G.depart(!!G.resumeRun, G.checkpoint()); };
         $('rsOk').onclick = close;
+        // 数字が0から増えていく
+        const cells = [...b.querySelectorAll('[data-cnt]')], t0 = performance.now();
+        const tick = () => { const p = Math.min(1, (performance.now() - t0) / 900), e = 1 - Math.pow(1 - p, 3); for (const c of cells) c.textContent = (c.dataset.pre || '') + Math.round(+c.dataset.cnt * e).toLocaleString(); if (p < 1 && document.body.contains(b)) requestAnimationFrame(tick); };
+        requestAnimationFrame(tick);
         if ($('rsGacha')) $('rsGacha').onclick = () => { closeAll(); ui.open('gacha'); };
       }
     });
@@ -116,7 +122,7 @@
     const autoOn = home && !S.settings.waitHome && !G.manualStart;
     const neverPulled = (S.gachaSeq || 1) <= 1 && S.coins >= G.GACHA.single; // まだ一度もガチャを引いていない人には、ガチャの案内を出したままにする
     if (cur && autoOn && cur.key !== 'mission') {
-      cur.t = (cur.t || 0) + dt; const lim = cur.key === 'result' ? (neverPulled ? 20 : 6) : 10; // ガチャ未経験なら案内を長めに出す
+      cur.t = (cur.t || 0) + dt; const lim = cur.key === 'result' ? (neverPulled ? 12 : 6) : 10; // ガチャ未経験なら案内を長めに出す
       $('uxAuto').textContent = Math.ceil(lim - cur.t) + '秒後に閉じます';
       if (cur.t >= lim) { if (cur.key === 'login' && G.loginReady()) { const r = G.loginClaim(); if (r) { ui.toast('ログインボーナス コイン +' + r + '枚'); G.save(); } } close(); }
     } else $('uxAuto').textContent = '';

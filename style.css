@@ -78,7 +78,7 @@ select,input[type=text]{font-family:inherit;font-size:13px;background:#0f0c15;co
 #combo .cb{font-size:11px;color:#9fdcff;text-shadow:1px 1px 0 #000;margin-top:2px}
 #combo.hot .cn{color:#ffb070;text-shadow:0 3px 0 #000,0 0 18px rgba(255,120,40,.95)}
 #title{position:fixed;inset:0;z-index:30;display:flex;align-items:center;justify-content:center;cursor:pointer;
-  background:radial-gradient(ellipse at 50% 45%,rgba(34,20,26,.8),rgba(5,4,9,.97) 65%);transition:opacity .7s}
+  background:radial-gradient(ellipse at 50% 45%,rgba(34,20,26,.94),rgba(5,4,9,.98) 65%);transition:opacity .7s}
 body.titleMode #hud{visibility:hidden}
 #title.out{opacity:0;pointer-events:none}
 #title .tInner{text-align:center;display:flex;flex-direction:column;align-items:center}
@@ -604,3 +604,73 @@ body.touch #title .tNote{display:none}
   .hubLast{padding:4px 8px;font-size:11px;max-height:42px;overflow:hidden}
   .hubGo{padding:6px 10px;font-size:17px}
 }
+/* ===================== 演出（fx_ui.js） ===================== */
+/* タイトル：仲間のイラスト・回る光の筋・霧・舞い上がる火の粉 */
+#title .tInner{position:relative;z-index:2}
+.tBg{position:absolute;inset:0;overflow:hidden;pointer-events:none;z-index:0}
+.tRays{position:absolute;left:50%;top:42%;width:180vmax;height:180vmax;transform:translate(-50%,-50%);background:repeating-conic-gradient(from 0deg,rgba(255,200,120,.07) 0 6deg,transparent 6deg 18deg);animation:tRay 60s linear infinite;mask:radial-gradient(circle,#000 0,transparent 55%);-webkit-mask:radial-gradient(circle,#000 0,transparent 55%)}
+@keyframes tRay{to{transform:translate(-50%,-50%) rotate(360deg)}}
+.tArt{position:absolute;bottom:-4%;height:92%;opacity:0;filter:brightness(.55) saturate(.9) drop-shadow(0 0 30px rgba(0,0,0,.8));animation:tArtIn 1.6s ease-out forwards,tArtFloat 7s ease-in-out infinite 1.6s}
+.tArt.l{left:-14%;animation-delay:.2s,1.8s}.tArt.r{right:-14%;animation-delay:.5s,2.1s}.tArt.c{left:50%;margin-left:-23vh;height:80%;bottom:6%;filter:brightness(.35) blur(1px);animation-delay:.8s,2.4s}
+@keyframes tArtIn{to{opacity:.85}}
+@keyframes tArtFloat{50%{transform:translateY(-10px)}}
+.tFog{position:absolute;inset:0;background:radial-gradient(ellipse 60% 40% at 50% 62%,rgba(5,4,9,.6),transparent 70%),radial-gradient(ellipse at 50% 55%,transparent 25%,rgba(5,4,9,.85) 75%),linear-gradient(transparent 55%,rgba(5,4,9,.95))} /* 真ん中（勇者とロゴ）の後ろは少し暗く */
+@media (orientation:portrait){.tArt.c{display:none}.tArt.l{left:-38%;height:70%}.tArt.r{right:-38%;height:70%}}
+.tEmbers{position:absolute;inset:0}
+.tEmbers .em{position:absolute;bottom:-10px;width:calc(4px * var(--s));height:calc(4px * var(--s));border-radius:50%;background:#ffb060;box-shadow:0 0 8px 2px rgba(255,140,60,.8);animation:emUp linear infinite;opacity:0}
+@keyframes emUp{0%{transform:translate(0,0);opacity:0}10%{opacity:1}100%{transform:translate(var(--dx),-105vh);opacity:0}}
+.tMain.shine{position:relative;overflow:hidden}
+.tMain.shine::after{content:'';position:absolute;top:0;bottom:0;width:30%;left:-40%;background:linear-gradient(100deg,transparent,rgba(255,255,255,.55),transparent);transform:skewX(-20deg);animation:tShine 4s ease-in-out infinite 1s;mix-blend-mode:overlay}
+@keyframes tShine{0%{left:-40%}35%,100%{left:130%}}
+.tStart{animation:tPulse 1.6s ease-in-out infinite!important}
+@keyframes tPulse{50%{opacity:.35;transform:scale(.97)}}
+/* ホーム：ゆっくり舞う光の粒 */
+.hubMotes{position:absolute;inset:0;z-index:-1;pointer-events:none;overflow:hidden}
+.hubMotes .mote{position:absolute;bottom:-8px;width:calc(5px * var(--s));height:calc(5px * var(--s));border-radius:50%;background:rgba(255,230,170,.9);box-shadow:0 0 10px 3px rgba(255,210,120,.45);animation:moteUp linear infinite;opacity:0}
+@keyframes moteUp{0%{transform:translate(0,0);opacity:0}15%{opacity:.8}85%{opacity:.6}100%{transform:translate(var(--dx),-90vh);opacity:0}}
+/* 数字のカウントアップ中・総合力アップ */
+.rolling{color:#fff6a0!important;text-shadow:0 0 8px rgba(255,220,90,.9)}
+.hpPow{position:relative}
+.powFloat{position:absolute;left:100%;top:-4px;margin-left:4px;color:#7fff8a;font-size:12px;font-weight:bold;text-shadow:0 1px 0 #000;animation:powF 1.4s ease-out forwards;white-space:nowrap}
+@keyframes powF{0%{opacity:0;transform:translateY(6px)}20%{opacity:1}100%{opacity:0;transform:translateY(-16px)}}
+.powGlow{animation:powG .9s ease-out}
+@keyframes powG{30%{color:#7fff8a;text-shadow:0 0 10px #7fff8a;transform:scale(1.15)}}
+/* 画面外の階段の矢印 */
+#stArrow{position:fixed;z-index:4;pointer-events:none;transform:translate(-50%,-50%);display:none;flex-direction:column;align-items:center;color:#9fe0ff;text-shadow:0 0 6px #000,0 2px 0 #000;font-size:11px}
+#stArrow.on{display:flex;animation:stBob 1s ease-in-out infinite}
+#stArrow b{display:block;font-size:22px;color:#bff0ff;transform:rotate(calc(var(--a) + 90deg));filter:drop-shadow(0 0 6px #4fc3ff)}
+@keyframes stBob{50%{opacity:.6}}
+/* 技が使えるようになった瞬間 */
+.sk.readyFlash{animation:skReady .5s ease-out}
+@keyframes skReady{0%{box-shadow:0 0 0 0 rgba(255,240,160,.9);filter:brightness(1.8)}100%{box-shadow:0 0 0 10px rgba(255,240,160,0);filter:none}}
+/* 大きなダメージ：赤い閃光 */
+#hurtFlash{position:fixed;inset:0;pointer-events:none;z-index:4;opacity:0;background:radial-gradient(ellipse at center,transparent 45%,rgba(255,20,30,.45))}
+#hurtFlash.on{animation:hurtF .35s ease-out}
+@keyframes hurtF{0%{opacity:1}100%{opacity:0}}
+@media (prefers-reduced-motion:reduce){.tEmbers,.hubMotes,.tRays{display:none}}
+/* 光が走る（出撃ボタン・ガチャのバナー） */
+.sweep{position:absolute;top:-20%;bottom:-20%;left:-40%;width:28%;z-index:3;pointer-events:none;background:linear-gradient(100deg,transparent,rgba(255,255,255,.45),transparent);transform:skewX(-20deg);animation:sweep 3.6s ease-in-out infinite}
+.hubBanner .sweep{animation-delay:1.8s}
+@keyframes sweep{0%{left:-40%}30%,100%{left:140%}}
+/* 画面（装備・技など）を開く時：下からふわっと */
+#modal:not(.hidden) .win{animation:winIn .22s cubic-bezier(.2,1.2,.4,1)}
+@keyframes winIn{from{transform:translateY(24px) scale(.97);opacity:0}}
+.hubGo.first .sweep{display:none}
+/* ボス階の「WARNING」：赤い帯が流れ、文字が点滅 */
+#bossWarn{position:fixed;left:0;right:0;top:38%;z-index:7;pointer-events:none;display:none;flex-direction:column;align-items:center;transform:translateY(-50%)}
+#bossWarn.on{display:flex;animation:bwFade 2.6s ease-in-out forwards}
+@keyframes bwFade{0%{opacity:0}10%,80%{opacity:1}100%{opacity:0}}
+#bossWarn .bwBand{width:100%;height:14px;background:repeating-linear-gradient(-45deg,#ff2a2a 0 12px,#1a0004 12px 24px);background-size:200% 100%;animation:bwBand .8s linear infinite;box-shadow:0 0 18px rgba(255,40,40,.7)}
+@keyframes bwBand{to{background-position:-34px 0}}
+#bossWarn .bwMain{margin-top:6px;font-size:clamp(40px,11vw,84px);letter-spacing:.15em;color:#ff4a4a;text-shadow:0 0 18px rgba(255,40,40,.9),0 4px 0 #000;animation:bwBlink .35s steps(2) infinite;background:rgba(20,0,4,.55);width:100%;text-align:center}
+#bossWarn .bwSub{width:100%;text-align:center;font-size:clamp(13px,3.4vw,18px);color:#ffd0d0;background:rgba(20,0,4,.55);padding:2px 0 6px;margin-bottom:6px;text-shadow:0 2px 0 #000}
+@keyframes bwBlink{50%{opacity:.55}}
+/* 結果画面のランク（スタンプのように押される） */
+.rsTop{display:flex;align-items:center;gap:12px;margin-bottom:8px}
+.rsTop .rsMsg{text-align:left;margin-bottom:2px}.rsTop .rsRec{text-align:left}
+.rsRank{flex:none;width:64px;height:64px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:40px;border:3px solid currentColor;box-shadow:0 0 14px currentColor,inset 0 0 10px currentColor;text-shadow:0 0 10px currentColor,0 3px 0 #000;animation:rankIn .5s cubic-bezier(.2,1.6,.4,1) .25s both;transform:rotate(-12deg)}
+.rsRank.rS{color:#ffd84d}.rsRank.rA{color:#ff8ac8}.rsRank.rB{color:#7fd0ff}.rsRank.rC{color:#a99fc0}
+@keyframes rankIn{0%{transform:scale(3) rotate(-30deg);opacity:0}100%{transform:scale(1) rotate(-12deg);opacity:1}}
+/* ホームのキャラをタップした時のキラキラ */
+.tapStar{position:absolute;z-index:3;pointer-events:none;font-style:normal;font-size:16px;transform:translate(-50%,-50%);text-shadow:0 0 6px currentColor;animation:tapStar .75s ease-out forwards}
+@keyframes tapStar{0%{transform:translate(-50%,-50%) scale(.4);opacity:1}100%{transform:translate(calc(-50% + var(--tx)),calc(-50% + var(--ty))) scale(1.1) rotate(90deg);opacity:0}}

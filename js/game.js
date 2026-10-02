@@ -443,7 +443,7 @@
     G.transition(() => {
       // 今回の挑戦の戦績を記録してホームで表示
       const rs = S.run && S.run.rs;
-      S.lastRun = rs ? { floor: W.f, kills: rs.kills, items: rs.items, best: rs.best, t: Math.round(rs.t), coins: rs.coins || 0 } : null;
+      S.lastRun = rs ? { floor: W.f, kills: rs.kills, items: rs.items, best: rs.best, t: Math.round(rs.t), coins: rs.coins || 0, start: (S.run && S.run.start) || 1 } : null;
       // 中継地点の調整：始めた階から1階も進めずに力尽きたら次は1段浅く、3階以上進めたら1段深く（最深の中継地点まで）
       if (S.run && W.f) { const prog = W.f - (S.run.start || 1); if (prog <= 0) S.cpBack = (S.cpBack || 0) + 1; else if (prog >= 3) S.cpBack = Math.max(0, (S.cpBack || 0) - 1); }
       S.mode = 'home'; S.run = null; S.homeMsg = msg || '';
@@ -461,7 +461,7 @@
     G.sfx('depart');
     G.transition(() => {
       const rs = run.rs;
-      S.lastRun = rs ? { floor: f, kills: rs.kills, items: rs.items, best: rs.best, t: Math.round(rs.t), coins: rs.coins || 0 } : null;
+      S.lastRun = rs ? { floor: f, kills: rs.kills, items: rs.items, best: rs.best, t: Math.round(rs.t), coins: rs.coins || 0, start: run.start || 1 } : null;
       S.mode = 'home'; S.homeMsg = 'B' + f + 'F から帰還した（続きから再出撃できます）';
       G.resumeRun = run; G.manualStart = true; // 帰ってきた時は自動で出撃しない
       G.setupHome();
