@@ -185,18 +185,30 @@
         if (X >= 0 && Y >= 0 && X < FW && Y < FH) out[Y * FW + X] = v;
       }
     };
+    // 呼吸（P.br）：腰から胸へ少しずつ持ち上がり、首から上は同じだけ上がる。出力の行ごとに元の行を探して描く（すき間ができない）
+    const br = P.br || 0, uOf = y => br ? br * G.clamp((HIP - y) / (HIP - NECK), 0, 1) : 0;
+    const blitV = (lay, dx, dy) => {
+      for (let yo = 0; yo < h; yo++) {
+        const ys = Math.round(yo + uOf(yo)); if (ys < 0 || ys >= h) continue;
+        for (let x = 0; x < w; x++) {
+          const v = lay[ys * w + x]; if (!v) continue;
+          const X = x + PADX + dx + shx(yo + dy), Y = yo + PADY + dy;
+          if (X >= 0 && Y >= 0 && X < FW && Y < FH) out[Y * FW + X] = v;
+        }
+      }
+    };
     // マント：付け根から離れるほど波打ち、後ろへなびく（逆写像なので穴が空かない）。lift で後ろへ持ち上がる
     const cp = P.cape || { amp: .6, ph: 0, st: 0 };
     for (let Y = 0; Y < FH; Y++) for (let X = 0; X < FW; X++) {
-      const x0 = X - PADX - Math.round(ln * .5) - shx(Y - PADY), y0 = Y - PADY - by;
+      const x0 = X - PADX - Math.round(ln * .5) - shx(Y - PADY), y0 = br ? Math.round(Y - PADY - by + uOf(Y - PADY - by)) : Y - PADY - by;
       const t = G.clamp((x0 - 66) / 52, 0, 1);
       const sx = x0 - Math.round(cp.st * t * 4 + Math.cos(cp.ph * .8 + y0 * .22) * cp.amp * .6 * t), sy = y0 - Math.round(Math.sin(cp.ph + x0 * .16) * cp.amp * 2.2 * t * t - (cp.lift || 0) * t * t * 7);
       if (sx < 0 || sy < 0 || sx >= w || sy >= h) continue;
       const v = L.cape[sy * w + sx]; if (v) out[Y * FW + X] = v;
     }
     // 剣の支点（手の位置）
-    const hx = Math.round(ln * .5 + (P.hand ? P.hand.x : 0)), hyy = by + (P.hand ? Math.round(P.hand.y) : 0);
-    const pivX = PIV.x + PADX + hx + shx(PIV.y + hyy), pivY = PIV.y + PADY + hyy;
+    const hx = Math.round(ln * .5 + (P.hand ? P.hand.x : 0)), hyy = by + (P.hand ? Math.round(P.hand.y) : 0) - Math.round(uOf(PIV.y));
+    const pivX = PIV.x + PADX + hx + shx(PIV.y + hyy), pivY = PIV.y + PADY + hyy + Math.round(uOf(PIV.y)) - uOf(PIV.y); // 剣は端数のまま持ち上げて、なめらかに
     // 剣の残像（振りの途中のコマだけ）：前のコマの角度に淡い刃を並べ、速さを見せる
     if (P.smear) {
       const W4 = w * 4, H4 = h * 4, S4 = SP.sword4;
@@ -250,7 +262,8 @@
     const moveHand = P.hand && (P.hand.x || P.hand.y);
     if (R) { thigh(legs[0]); rotBoot(legs[0]); thigh(legs[1]); }
     else boot(L.bootB, SP.bbB, P.lb || { x: 0, y: 0 });
-    blit(moveHand ? L.bodyFill : L.body, Math.round(ln * .5), by);
+    if (br) blitV(moveHand ? L.bodyFill : L.body, Math.round(ln * .5), by);
+    else blit(moveHand ? L.bodyFill : L.body, Math.round(ln * .5), by);
     if (R) rotBoot(legs[1]); else boot(L.bootF, SP.bbF, P.lf || { x: 0, y: 0 });
     // 剣（支点のまわりに回転）：振りかぶって刃が上を向く時は頭の後ろに描き、顔を隠さない
     const rot = P.rot || 0, a = rot * Math.PI / 180, ca = Math.cos(a), sa = Math.sin(a);
@@ -271,7 +284,7 @@
     if (behind) sword();
     // 頭：前傾・呼吸の遅れ・髪先の揺れ（上の方ほど大きくずらす）。前傾の時は首の位置のずれごと運ぶ
     const sw = P.sway || 0, headX = Math.round(ln) + shx(NECK + by);
-    blit(P.eye === 1 ? L.headBlink : P.eye === 2 ? L.headHurt : L.head, headX, hy, (x, y) => y < 30 ? Math.round(sw * (30 - y) / 30) : 0, true);
+    blit(P.eye === 1 ? L.headBlink : P.eye === 2 ? L.headHurt : L.head, headX, hy - Math.round(br), (x, y) => y < 30 ? Math.round(sw * (30 - y) / 30) : 0, true);
     if (!behind) sword();
     blit(L.hand, hx, hyy);
     // 層をずらした時に残る孤立した1ドットを消す
@@ -294,7 +307,8 @@
   POSES.idleX = POSES.idle.map(p => Object.assign({}, p, { eye: 2 })); // ホームで何度もつつかれた時の「＞＜」の目
   // ホームの待機（ぬるぬる版）：16コマ。体の上下（1ドット単位でカクつく）はやめて、マントのなびきと剣の光だけを細かく動かす
   //   呼吸の上下・伸び縮みは画面側（ui_home.js）でなめらかに付ける
-  POSES.home = Array.from({ length: 16 }, (_, i) => ({ by: 0, hy: 0, sway: 0, cape: { amp: 1, ph: i / 16 * TAU, st: 0 }, glint: i >= 4 && i <= 11 ? (i - 4) / 7 : null }));
+  //   32コマで一呼吸。呼吸（br）・上半身の小さな傾き（shear）・髪先（sway）・マントを少しずつずらして重ね、毎コマどこかのドットが動く
+  POSES.home = Array.from({ length: 32 }, (_, i) => { const q = i / 32 * TAU; return { by: 0, hy: 0, br: 1.35 * (1 - Math.cos(q)) / 2, shear: .015 * Math.sin(q + .8), sway: 1.4 * Math.sin(q + 1.6), cape: { amp: 1.1, ph: q * 2, st: 0 }, glint: i >= 8 && i <= 23 ? (i - 8) / 15 : null }; });
   POSES.homeX = POSES.home.map(p => Object.assign({}, p, { eye: 2 }));
   POSES.homeB = POSES.home.map(p => Object.assign({}, p, { eye: 1 })); // まばたき
   // 足の動き（1歩の周期 q）：前へ振り出す間は足を持ち上げ、踏み出し切るとつま先が上がり（かかとから着地）、

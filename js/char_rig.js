@@ -111,6 +111,19 @@
       }
     };
     const hair = y => y < S.ground * .28 ? Math.round((P.hs || 0) * (1 - y / (S.ground * .28))) : 0;
+    // 呼吸（P.br＝胸から上が持ち上がる量・ドット数の端数あり）：足元は動かず、腰から胸にかけて少しずつ持ち上がり、首から上は同じだけ上がる。
+    //   行ごとに1ドット動くタイミングがずれるので、ドット絵のまま、なめらかに膨らんで見える
+    const br = P.br || 0, neckY = S.neck ? S.neck[1] : S.ground * .4, hipY = S.ground - (S.ground - neckY) * .42;
+    const uOf = y => br ? br * G.clamp((hipY - y) / Math.max(1, hipY - neckY), 0, 1) : 0;
+    // 縦に伸ばす時は「出力の行ごとに元の行を探す」描き方（行が1つ増えるだけで、すき間ができない）
+    const blitV = (L, dx, dy, hairF) => {
+      if (!L.n) return; const b = L.bb;
+      for (let yo = b.y0 - 3; yo <= b.y1; yo++) {
+        const ys = Math.round(yo + uOf(yo)); if (ys < b.y0 || ys > b.y1) continue;
+        const sh = shx(ys) + (hairF ? hairF(ys) : 0);
+        for (let x = b.x0; x <= b.x1; x++) { const v = L.px[ys * w + x]; if (v) put(x + ox + dx + sh, yo + oy + dy, v); }
+      }
+    };
     // 髪や布：首元から離れるほど大きく波打ち、後ろへ流れる（逆写像）
     const flow = () => {
       const L = S.flow; if (!L.n) return;
@@ -119,6 +132,7 @@
         if (X < 0 || Y < 0 || X >= FW || Y >= FH) continue;
         let y0 = Y - oy, hx = 0;
         if (S.head && y0 - (P.hy || 0) <= S.neck[1]) { y0 -= P.hy || 0; hx = P.hx || 0; } // 首から上の髪は頭と一緒に動く
+        if (br) y0 = Math.round(y0 + uOf(y0)); // 呼吸で持ち上がる分
         const x0 = X - ox - hx - shx(y0) - hair(y0); // 頭の揺れ（hair）も体と同じだけずらして、つなぎ目に隙間ができないように
         const t = G.clamp(((x0 - nx) * back) / reach, 0, 1), tt = t * t;
         const sx = Math.round(x0 - back * (((P.fs || 0) * 2.5 + Math.sin((P.fph || 0) - (x0 - nx) * back * .1) * (P.famp || 0) * .5) * t));
@@ -137,9 +151,11 @@
       blit(S.body, 0, 0, hair); rot(S.near, S.nearHip, P.an || 0, 0, 0); rot(S.weapon, S.shoulder, wa, 0, P.wy || 0);
     } else {
       // 正面の立ち絵：振りかぶった武器は体の後ろ、振り下ろしは手前
-      flow(); if (P.wBack) rot(S.weapon, S.shoulder, wa, P.wx || 0, P.wy || 0);
-      blit(S.body, 0, 0, hair); if (S.head) blit(S.head, P.hx || 0, P.hy || 0, hair);
-      if (!P.wBack) rot(S.weapon, S.shoulder, wa, P.wx || 0, P.wy || 0);
+      const wyB = (P.wy || 0) - uOf(S.shoulder[1]); // 武器は肩の高さの分だけ呼吸で上がる（端数のまま回すので、なめらか）
+      flow(); if (P.wBack) rot(S.weapon, S.shoulder, wa, P.wx || 0, wyB);
+      if (br) { blitV(S.body, 0, 0, hair); if (S.head) blitV(S.head, P.hx || 0, P.hy || 0, hair); }
+      else { blit(S.body, 0, 0, hair); if (S.head) blit(S.head, P.hx || 0, P.hy || 0, hair); }
+      if (!P.wBack) rot(S.weapon, S.shoulder, wa, P.wx || 0, wyB);
     }
     for (let Y = 1; Y < FH - 1; Y++) for (let X = 1; X < FW - 1; X++) { const i = Y * FW + X; if (out[i] && !out[i - 1] && !out[i + 1] && !out[i - FW] && !out[i + FW]) out[i] = 0; }
     if (raw) return out;
@@ -173,7 +189,11 @@
     });
     // 待機：体が呼吸で上下し、頭は少し遅れてついていく。武器はゆらゆら揺れ、髪がなびく（ずらしてできたすき間は fill でふさぐ）
     // ホームの待機（ぬるぬる版）：16コマ。体・頭の1ドットの上下はやめ、武器をなめらかに揺らし、髪をなびかせる（呼吸は画面側で）
-    if (set === 'home') return Array.from({ length: 16 }, (_, i) => { const q = i / 16 * TAU; return { by: 0, wr: Math.sin(q) * 2.2, famp: 1, fph: q, fill: true }; });
+    //   32コマで一呼吸。呼吸（br）・体の小さな揺れ（lean）・頭の髪先（hs）・武器（wr）・なびき（fph）を少しずつずらして重ね、毎コマどこかのドットが動く
+    if (set === 'home') return Array.from({ length: 32 }, (_, i) => {
+      const q = i / 32 * TAU;
+      return { by: 0, br: 1.35 * (1 - Math.cos(q)) / 2, lean: .55 * Math.sin(q + .8), hs: 1.3 * Math.sin(q + 1.6), wr: 2.6 * Math.sin(q + .5), famp: 1.1, fph: q * 2, fill: true };
+    });
     if (set === 'idle') return Array.from({ length: 8 }, (_, i) => { const q = i / 8 * TAU; return { by: [0, 0, 0, 1, 1, 1, 1, 0][i], hy: [0, 0, 0, -1, 0, 0, 0, 1][i], wy: [0, 0, 0, 1, 1, 1, 1, 0][i], wr: Math.sin(q) * 2, famp: .9, fph: q, fill: true }; });
     // 攻撃：剣・刀は振りかぶって（体の後ろ）振り下ろす。杖は掲げてから前へ振る
     // 角度は画面上の時計回りが正（左向きの絵では、正＝武器の先が上がる・振りかぶる）。lean は正＝のけぞる・負＝前へ倒れる
@@ -193,7 +213,7 @@
     const p = P[Math.max(0, Math.min(P.length - 1, i))];
     return CACHE[key] = { n: compose(S, p), fix: view === 'runR' || view === 'back', ox: OX, oy: OY };
   };
-  G.charRigCount = set => ({ run: 12, back: 10, idle: 8, idleX: 8, home: 16, homeX: 16, atk: 6, raise: 3 })[set] || 0;
+  G.charRigCount = set => ({ run: 12, back: 10, idle: 8, idleX: 8, home: 32, homeX: 32, atk: 6, raise: 3 })[set] || 0;
   // 選択中のキャラのコマを空き時間に少しずつ先に作る（初めて使うコマで一瞬止まらないように）
   const JOBS = [['front', 'home'], ['front', 'idle'], ['runL', 'run'], ['runR', 'run'], ['front', 'atk'], ['back', 'back'], ['front', 'raise'], ['front', 'idleX']];
   setInterval(() => {

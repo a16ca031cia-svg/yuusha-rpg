@@ -67,7 +67,7 @@
   }
   // ばね：J＝つぶれ具合（＋でつぶれ、−で縦に伸びる）、K＝左右の傾き（ゼリーのように揺れる）
   const J = { x: 0, v: 0 }, K = { x: 0, v: 0 };
-  let press = false, tiltT = 0, breathT = 0;
+  let press = false, tiltT = 0;
   function poke(px, amt) { J.v += amt * 30; K.v += (px - .5) * 12; }
   function jelly(dt) {
     dt = Math.min(dt, 1 / 30);
@@ -77,9 +77,9 @@
       K.v += ((press ? tiltT * .5 : 0) - K.x) * 210 * h - K.v * 5 * h; K.x += K.v * h;
     }
     const sq = Math.max(-.2, Math.min(.22, J.x)), b = $('hbBody');
-    // 呼吸：ゆっくり縦に伸び縮み（ドットの1マスより細かく動くので、なめらかに見える）。足元は固定
-    breathT += dt; const br = Math.sin(breathT * Math.PI * 2 / 2.8), sway = Math.sin(breathT * Math.PI * 2 / 5.6);
-    b.style.transform = `skewX(${(K.x * 10 + sway * .6).toFixed(2)}deg) scale(${((1 + sq * .75) * (1 - br * .006)).toFixed(4)},${((1 - sq) * (1 + br * .014)).toFixed(4)})`;
+    // 呼吸などの動きはドット絵の中（コマ）で付けるので、ここではタップした時のぷにぷにだけ
+    if (Math.abs(sq) < .001 && Math.abs(K.x) < .002 && !press) { if (b.style.transform) b.style.transform = ''; return; }
+    b.style.transform = `skewX(${(K.x * 10).toFixed(2)}deg) scale(${(1 + sq * .75).toFixed(4)},${(1 - sq).toFixed(4)})`;
   }
   // キャラをタップ：セリフと小さく跳ねる
   // 何度もつつくと「＞＜」の目になって、しばらくすると元に戻る
@@ -152,8 +152,8 @@
   }
   // ドット絵（SD）の待機アニメーションを大きく表示：勇者はいつも、ガチャのキャラは「SD」に切り替えた時
   let pixT = 0, pixKey = '', box = null, lastFrameKey = '';
-  // ホームの待機は16コマ（1秒に12コマ）のなめらか版。dz＝「＞＜」の目、bl＝まばたき（勇者だけ）
-  const NF = 16, FPS = 12;
+  // ホームの待機は32コマ（1秒に12コマ・約2.7秒で一呼吸）のなめらか版。dz＝「＞＜」の目、bl＝まばたき（勇者だけ）
+  const NF = 32, FPS = 12;
   function sdFrame(c, i, dz, bl) {
     const set = dz ? 'homeX' : bl && c === 'hero' ? 'homeB' : 'home';
     if (c === 'hero') return G.heroPose && G.heroPose(set, i);
