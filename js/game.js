@@ -13,7 +13,7 @@
       equip: { weapon: null, head: null, body: null, feet: null, acc1: null, acc2: null },
       learned: [], skillSet: [null, null, null], skillOff: {}, // skillOff：使わない設定にした技（覚えた技は基本すべて自動で使う）
       autoSell: { on: false, maxRarity: 0, slots: { weapon: true, head: true, body: true, feet: true, acc: true }, maxAffixLv: 99, keep: [] },
-      settings: { vol: .6, bgm: .5, fx: 2, dmgNum: true, shake: true, speed: 1, waitHome: false, autoEquip: true }, // 自動装着は最初からON（強い装備を手に入れたらすぐ使う）
+      settings: { vol: .6, bgm: .5, fx: 2, dmgNum: true, shake: true, speed: 1, waitHome: false, autoEquip: true, eqPolicy: 'auto', keepSet: '', blessPol: 'auto' }, // 自動装着は最初からON（強い装備を手に入れたらすぐ使う）
       mode: 'home', run: null, stats: { kills: 0, deaths: 0, runs: 0 }, rngS: 0, homeMsg: '',
       // ガチャ・キャラクター：共通のコイン・素材・天井、選択中のキャラ、キャラごとの育成状況
       coins: 0, mats: { forge: 0, soul: 0 }, pity: 0, gachaSeq: 1, gachaLast: null, autoDis: { on: false, maxRar: 1 },
@@ -320,6 +320,20 @@
         }
         if (n >= 6) { G.ui.toast('モンスターハウスだ！'); G.shake(3); G.sfx('alarm'); W.mhActive = r; }
       }
+      // 特殊な部屋に入った時（はじめて入った時だけ）
+      if (r.kind && !force) {
+        const sp = W.specials.find(s => s.room === rid);
+        if (r.kind === 'altar' && sp && !sp.used) {
+          sp.used = true;
+          G.fxAdd({ k: 'ring', x: sp.x, y: sp.y, r: 50, col: '#ffe9a0', dur: .8 }); G.light(sp.x, sp.y, 160, 1.4, '#ffe9a0');
+          G.burst(sp.x, sp.y - 10, 30, ['#fff6c0', '#ffd84d', '#ffffff'], 100, .9, 1, -60);
+          if (G.bless) G.bless.gainSoon('祝福の祭壇', 1, .6);
+        } else if (r.kind === 'vault') { G.ui.toast('宝物庫だ！ 宝箱が並んでいる'); G.sfx('chest'); }
+        else if (r.kind === 'guard') {
+          G.ui.banner('守護者の間', '倒すと祝福を2つ得られる'); G.sfx('alarm'); G.shake(2);
+          for (const e of W.enemies) if (e.guardian && !e.dead) { e.awake = true; e.cd = .8; }
+        }
+      }
     }
     W.vis.fill(0);
     const RAD = 7;
@@ -340,14 +354,15 @@
       D, f: D.f, enemies: [], chests: [], drops: [], projs: [], fx: [], parts: [], nums: [], booms: [], follows: [], lights: [],
       explored: new Uint8Array(n), vis: new Uint8Array(n), dist: new Int16Array(n), q: new Int32Array(n),
       roomSeen: new Uint8Array(D.rooms.length), heroTile: -1, chunks: new Map(), fogCv: G.canvas(D.W, D.H),
-      fogDirty: true, miniDirty: true, complete: false, time: 0, boss: null,
+      fogDirty: true, miniDirty: true, complete: false, time: 0, boss: null, specials: (D.specials || []).map(s => Object.assign({}, s)),
     };
     sync();
+    if (G.bless && G.bless.newFloor) G.bless.newFloor();
   }
   function mkEnemy(type, x, y, o) {
     o = o || {};
     const d = G.ENEMY[type], f = W.f, tier = W.D.tier;
-    const mult = o.boss ? 14 : o.elite ? 3.5 : 1, am = o.boss ? 1.7 : o.elite ? 1.4 : 1;
+    const mult = o.boss ? 14 : o.guardian ? 7 : o.elite ? 3.5 : 1, am = o.boss ? 1.7 : o.guardian ? 1.6 : o.elite ? 1.4 : 1; // 守護者：強敵よりさらに硬い
     const e = {
       type, d, x, y, vx: 0, vy: 0, kx: 0, ky: 0, r: o.boss ? Math.min(11, d.r * 1.6) : d.r,
       maxHp: Math.round(d.hp * G.fHp(f) * mult), atkV: d.atk * G.fAtk(f) * am,
@@ -357,6 +372,7 @@
       name: (G.TIER_PREFIX[tier] || '') + d.n, lunge: 0, shake: 0, hpShow: 0,
     };
     if (o.boss) e.name = '階層の主 ' + e.name;
+    if (o.guardian) { e.guardian = true; e.elite = true; e.name = '守護者 ' + e.name; e.r = Math.min(10, d.r * 1.3); }
     e.hp = o.hp != null ? Math.min(o.hp, e.maxHp) : e.maxHp;
     if (boxHit(e.x, e.y, e.r)) { e.x = Math.floor(x / T) * T + 8; e.y = Math.floor(y / T) * T + 8; }
     return e;
@@ -369,14 +385,14 @@
     if (snap) {
       W.explored = G.unpackBits(snap.explored, D.W * D.H);
       if (snap.roomSeen) snap.roomSeen.forEach((v, i) => { if (i < W.roomSeen.length) W.roomSeen[i] = v; });
-      for (const e of snap.enemies) W.enemies.push(mkEnemy(e.t, e.x, e.y, { hp: e.hp, elite: e.el, boss: e.bo }));
-      D.chests.forEach((c, i) => W.chests.push({ x: c.x, y: c.y, mimic: c.mimic, opened: !!(snap.chests && snap.chests[i]), hidden: c.mimic && !!(snap.chests && snap.chests[i]), openT: 1 }));
+      for (const e of snap.enemies) W.enemies.push(mkEnemy(e.t, e.x, e.y, { hp: e.hp, elite: e.el, boss: e.bo, guardian: e.gd }));
+      D.chests.forEach((c, i) => W.chests.push({ x: c.x, y: c.y, mimic: c.mimic, rich: c.rich, opened: !!(snap.chests && snap.chests[i]), hidden: c.mimic && !!(snap.chests && snap.chests[i]), openT: 1 }));
       for (const d of snap.drops || []) W.drops.push({ it: d.it, x: d.x, y: d.y, z: 0, vz: 0, vx: 0, vy: 0, t: 1 });
       H.x = snap.hx; H.y = snap.hy; H.cds = snap.cds || {}; H.shield = snap.shield || 0; H.ult = snap.ult || 0;
       if (boxHit(H.x, H.y, H.r)) { H.x = D.start.tx * T + 8; H.y = D.start.ty * T + 8; }
     } else {
       for (const e of D.enemies) W.enemies.push(mkEnemy(e.type, e.x, e.y, e));
-      for (const c of D.chests) W.chests.push({ x: c.x, y: c.y, mimic: c.mimic, opened: false, openT: 0 });
+      for (const c of D.chests) W.chests.push({ x: c.x, y: c.y, mimic: c.mimic, rich: c.rich, opened: false, openT: 0 });
       H.x = D.start.tx * T + 8; H.y = D.start.ty * T + 10;
     }
     W.boss = W.enemies.find(e => e.boss) || null;
@@ -431,7 +447,8 @@
       if (rr) { S.run = rr; G.enterFloor(rr.floor, rr.snap); } // 中断した挑戦の続きから
       else {
         S.stats.runs++;
-        S.run = { seed: (R() * 4294967296) >>> 0, floor: f0, start: f0, rs: { kills: 0, items: 0, best: 0, t: 0, floorT: 0 } };
+        if (G.bless) G.bless.reset();
+        S.run = { seed: (R() * 4294967296) >>> 0, floor: f0, start: f0, bless: {}, awk: [], rs: { kills: 0, items: 0, best: 0, t: 0, floorT: 0 } };
         H.hp = H.st.maxHp; H.cds = {}; H.shield = 0; H.ult = 0; // 出撃開始時は必殺技ゲージ0
         G.enterFloor(f0);
       }
@@ -443,7 +460,8 @@
     G.transition(() => {
       // 今回の挑戦の戦績を記録してホームで表示
       const rs = S.run && S.run.rs;
-      S.lastRun = rs ? { floor: W.f, kills: rs.kills, items: rs.items, best: rs.best, t: Math.round(rs.t), coins: rs.coins || 0, start: (S.run && S.run.start) || 1 } : null;
+      S.prevRun = S.lastRun ? { floor: S.lastRun.floor, kills: S.lastRun.kills, start: S.lastRun.start || 1, ch: S.lastRun.ch } : null; // 結果画面の「前回との比較」用
+      S.lastRun = rs ? { floor: W.f, kills: rs.kills, items: rs.items, best: rs.best, t: Math.round(rs.t), coins: rs.coins || 0, start: (S.run && S.run.start) || 1, dmg: rs.dmg || {}, burst: rs.maxBurst || 0, bless: (S.run && S.run.bless) || {}, awk: (S.run && S.run.awk) || [], ch: S.cur } : null;
       // 中継地点の調整：始めた階から1階も進めずに力尽きたら次は1段浅く、3階以上進めたら1段深く（最深の中継地点まで）
       if (S.run && W.f) { const prog = W.f - (S.run.start || 1); if (prog <= 0) S.cpBack = (S.cpBack || 0) + 1; else if (prog >= 3) S.cpBack = Math.max(0, (S.cpBack || 0) - 1); }
       S.mode = 'home'; S.run = null; S.homeMsg = msg || '';
@@ -461,7 +479,8 @@
     G.sfx('depart');
     G.transition(() => {
       const rs = run.rs;
-      S.lastRun = rs ? { floor: f, kills: rs.kills, items: rs.items, best: rs.best, t: Math.round(rs.t), coins: rs.coins || 0, start: run.start || 1 } : null;
+      S.prevRun = S.lastRun ? { floor: S.lastRun.floor, kills: S.lastRun.kills, start: S.lastRun.start || 1, ch: S.lastRun.ch } : null; // 結果画面の「前回との比較」用
+      S.lastRun = rs ? { floor: f, kills: rs.kills, items: rs.items, best: rs.best, t: Math.round(rs.t), coins: rs.coins || 0, start: run.start || 1, dmg: rs.dmg || {}, burst: rs.maxBurst || 0, bless: run.bless || {}, awk: run.awk || [], ch: S.cur } : null;
       S.mode = 'home'; S.homeMsg = 'B' + f + 'F から帰還した（続きから再出撃できます）';
       G.resumeRun = run; G.manualStart = true; // 帰ってきた時は自動で出撃しない
       G.setupHome();
@@ -482,7 +501,7 @@
     sync();
     return {
       explored: G.packBits(W.explored), roomSeen: Array.from(W.roomSeen),
-      enemies: W.enemies.filter(e => !e.dead).map(e => ({ t: e.type, x: Math.round(e.x), y: Math.round(e.y), hp: Math.ceil(e.hp), el: e.elite ? 1 : 0, bo: e.boss ? 1 : 0 })),
+      enemies: W.enemies.filter(e => !e.dead).map(e => ({ t: e.type, x: Math.round(e.x), y: Math.round(e.y), hp: Math.ceil(e.hp), el: e.elite ? 1 : 0, bo: e.boss ? 1 : 0, gd: e.guardian ? 1 : 0 })),
       chests: W.chests.map(c => c.opened ? 1 : 0), drops: W.drops.map(d => ({ x: Math.round(d.x), y: Math.round(d.y), it: d.it })),
       hx: Math.round(H.x), hy: Math.round(H.y), cds: H.cds, shield: H.shield, ult: H.ult || 0,
     };
@@ -586,6 +605,7 @@
     if (H.shield > 0) {
       const ab = Math.min(H.shield, dmg); H.shield -= ab; dmg -= ab;
       G.fxAdd({ k: 'shieldHit', x: H.x, y: H.y, dur: .25 });
+      if (H.shield <= 0 && G.bless) G.bless.onShieldBreak(); // 祝福「守護の反撃」
       if (dmg <= 0) { G.sfx('shield'); return; }
     }
     H.hp -= dmg; H.flash = .12; H.hurtT = .3; H.calmT = 0;
@@ -635,9 +655,12 @@
     if (!seen(e) && o.src !== 'burn' && o.src !== 'poison') return 0;
     let dmg = base, crit = false;
     if (o.canCrit !== false && R() < H.st.crit) { dmg *= H.st.critd; crit = true; }
+    if (o.src === 'skill' && H.act && H.act.strideMul) dmg *= H.act.strideMul; // 祝福「狩人の歩み」
     dmg *= (.92 + R() * .16) * (e.d.armor || 1);
     dmg = Math.max(1, dmg);
     e.hp -= dmg; e.hpShow = 2.5;
+    // 結果画面の「何が強かったか」：攻撃の出どころごとのダメージ
+    const rsd = G.runStats(); if (S.run) { const dk = o.src === 'skill' && H.act && H.act.sid ? 'sk_' + H.act.sid : (H.act && H.act.k === 'ult' && (o.src === 'skill' || o.src === 'ult')) ? 'ult' : (o.src || 'atk'); rsd.dmg = rsd.dmg || {}; rsd.dmg[dk] = (rsd.dmg[dk] || 0) + Math.min(dmg, Math.max(0, e.hp + dmg)); }
     wake(e);
     if (o.src !== 'burn' && o.src !== 'poison') {
       e.flash = .09; e.hitstop = crit ? .09 : .055; e.shake = .12;
@@ -661,7 +684,8 @@
     }
     // 必殺技ゲージ：攻撃・技の命中でたまる（必殺技そのものでは増えない）
     if ((o.src === 'atk' || o.src === 'skill') && !ult) H.ult = Math.min(G.ULT.max, (H.ult || 0) + G.ULT.perHit);
-    if (e.hp <= 0) killEnemy(e);
+    if (G.bless && S.run) G.bless.onHit(e, dmg, o, crit); // 祝福：命中時の効果
+    if (e.hp <= 0 && !e.dead) { e.diedFrozen = e.frozen > 0; e.lastO = { src: o.src, gen: o.gen || 0, crit }; killEnemy(e); }
     return dmg;
   }
   G.hitEnemy = (e, b, o) => { sync(); return hitEnemy(e, b, o); };
@@ -682,7 +706,7 @@
     }
   }
   // 連鎖雷：最初に当たった敵から、近い順に最大n体へ伝わる
-  function chainLightning(from, lv, n, dmg, src) {
+  function chainLightning(from, lv, n, dmg, src, gen) {
     const pts = [{ x: from.x, y: from.y - 8, e: null }];
     const used = new Set([from]);
     let cur = from;
@@ -697,10 +721,12 @@
       if (!best) break;
       used.add(best); pts.push({ x: best.x, y: best.y - 8, e: best }); cur = best;
     }
-    G.fxAdd({ k: 'bolt', pts, lv, dur: .32 + pts.length * .035, hop: .035, done: 0, dmg, src, seed: R() * 1000 });
+    G.fxAdd({ k: 'bolt', pts, lv, dur: .32 + pts.length * .035, hop: .035, done: 0, dmg, src, gen: gen || 0, seed: R() * 1000 });
     G.sfx('zap');
   }
-  G.chainLightning = (a, b, c, d, e) => { sync(); chainLightning(a, b, c, d, e); };
+  G.chainLightning = (a, b, c, d, e, g) => { sync(); chainLightning(a, b, c, d, e, g); };
+  G.healHero = v => { sync(); heal(v, true); };
+  G.gainCoins = (n, x, y, big) => { sync(); gainCoins(n, x, y, big); };
   function killEnemy(e) {
     if (e.dead) return;
     e.dead = true; e.deadT = 0; e.frozen = 0;
@@ -729,7 +755,7 @@
       G.ui.callout({ text: n + ' COMBO!', sub: tier[0], tone: tier[1], prio: 2, dur: 1.2, size: tier[2], flash: n >= 30 ? .3 : 0, rays: true });
       G.shake(n >= 30 ? 4 : 2.5); if (n % 50 === 0) G.slowmo(.35, .3);
     }
-    if (e.elite && !e.boss) G.ui.callout({ text: '強敵撃破!', sub: e.name || (e.d && e.d.n) || '', tone: 'orange', prio: 2, dur: 1.2, size: .9, flash: .25 });
+    if (e.elite && !e.boss && !e.guardian) G.ui.callout({ text: '強敵撃破!', sub: e.name || (e.d && e.d.n) || '', tone: 'orange', prio: 2, dur: 1.2, size: .9, flash: .25 });
     if (H.st.leech) heal(H.st.maxHp * H.st.leech, true);
     if (H.st.boomLv && !e.exploded) { e.exploded = true; W.booms.push({ x: e.x, y: e.y - 4, t: .06, r: H.st.boomR, dmg: H.st.atk * H.st.boomDmg, lv: H.st.boomLv }); }
     // ドロップ
@@ -742,9 +768,17 @@
     else if (e.elite) gainCoins(G.COIN.elite(W.f), e.x, e.y, true);
     else if (R() < G.COIN.enemyCh * luck) gainCoins(G.COIN.enemy(W.f) * (.7 + R() * .6), e.x, e.y);
     if (!H.act || H.act.k !== 'ult') H.ult = Math.min(G.ULT.max, (H.ult || 0) + G.ULT.perKill); // 必殺技ゲージ（必殺技での撃破では増えない）
+    rs0.maxBurst = Math.max(rs0.maxBurst || 0, cb.burst); // 結果画面：最大同時撃破
+    if (G.bless && S.run) {
+      G.bless.onKill(e, e.lastO);
+      // 階層の主・守護者を倒すと祝福（守護者は2つ）
+      if (e.boss) G.bless.gainSoon('階層の主を討伐', 1, 2.6);
+      else if (e.guardian) { G.ui.callout({ text: '守護者 撃破!', sub: '祝福の力が宿る', tone: 'orange', prio: 3, dur: 1.2, size: .9, flash: .3 }); G.bless.gainSoon('守護者を撃破', 2, 1.4); }
+    }
   }
   // ガチャコイン：獲得した時点で所持数に足す（死亡しても失わない）。金色の粒が勇者へ飛ぶ
   function gainCoins(n, x, y, big) {
+    if (G.bless && S.run) n *= G.bless.coinMul(); // 祝福「黄金の加護」
     n = Math.max(1, Math.round(n));
     S.coins += n; const rs = G.runStats(); rs.coins = (rs.coins || 0) + n;
     G.popText(x, y - 26, '+' + n + '枚', '#ffd84d', big ? 10 : 7);
@@ -806,18 +840,67 @@
     const it = G.itemById(id); if (it) it.nw = false;
     G.recalc(); G.save();
   };
-  // おすすめ装備（部位ごとに評価値が最も高いもの）。プレイヤーがボタンを押した時だけ適用する
-  G.recommendEquip = function () {
+  // ---------------- おすすめ装備（育成方針つき）
+  // 方針ごとに「装備した時の能力値（セット効果も込み）」を評価し、部位を1つずつ入れ替えて良くなる組み合わせを探す。
+  // 固定（🔒）した装備は外さない。維持したいセットを選ぶと、そのセットが揃う組み合わせを多少の数値差より優先する
+  G.EQ_POLICY = {
+    auto: { n: 'おまかせ', d: '攻撃と生存のバランス（総合力）' },
+    mob: { n: '大量討伐', d: '連鎖雷・撃破爆発・追撃・攻撃範囲を重視' },
+    boss: { n: 'ボス攻略', d: '単体火力・会心・技の威力を重視' },
+    safe: { n: '安定探索', d: 'HP・防御・回復・バリアを重視' },
+    coin: { n: 'コイン収集', d: '幸運・移動速度・経験値を重視' },
+  };
+  function policyScore(st, pol) {
+    const dps = st.atk * st.aspd * (1 + Math.min(.9, st.crit) * (st.critd - 1));
+    const ehp = st.maxHp * (1 + st.def / 40) * (1 + (st.regen || 0) * 20 + (st.barrier || 0) * .5 + (st.leech || 0) * 3);
+    const fx = st.fx, l = k => fx[k] || 0;
+    switch (pol) {
+      case 'mob': return dps * (1 + .14 * l('chain') + .14 * l('boom') + .08 * l('follow') + .05 * (l('burn') + l('poison') + l('frost'))) * st.area * Math.sqrt(ehp);
+      case 'boss': return dps * st.spow * (1 + .04 * l('cdr') + .03 * l('recast')) * Math.sqrt(ehp);
+      case 'safe': return ehp * Math.pow(dps, .45);
+      case 'coin': return st.luck * st.luck * (st.mspd / 112) * st.expMul * Math.pow(dps, .5) * Math.pow(ehp, .3);
+      default: return G.powerOf(st);
+    }
+  }
+  G.recommendEquip = function (pol) {
     sync();
-    const plan = Object.assign({}, S.equip), used = new Set();
-    for (const slot of G.SLOTS) {
-      const type = G.slotType(slot);
+    pol = pol || S.settings.eqPolicy || 'auto';
+    const plan = Object.assign({}, S.equip);
+    const fixed = new Set(G.SLOTS.filter(s => { const it = G.itemById(plan[s]); return it && it.lock; }));
+    // 部位ごとの候補：評価値の高い14個＋セット装備（多すぎると重いので絞る）
+    const byType = {};
+    for (const it of S.items) (byType[it.slot] || (byType[it.slot] = [])).push(it);
+    const cands = {};
+    for (const ty in byType) {
+      const arr = byType[ty].slice().sort((a, b) => G.itemScore(b) - G.itemScore(a)), top = arr.slice(0, 14);
+      cands[ty] = top.concat(arr.filter(i => i.set && !top.includes(i)).slice(0, 12));
+    }
+    // まずは部位ごとに評価値の一番高いもの（維持するセットを選んでいれば、そのセットの装備を先に）
+    const ks = S.settings.keepSet && G.SETS[S.settings.keepSet] ? S.settings.keepSet : '';
+    const setMax = ks ? Math.max(...Object.keys(G.SETS[ks].b).map(Number)) : 0;
+    const used = new Set(G.SLOTS.filter(s => fixed.has(s)).map(s => plan[s]));
+    for (const s of G.SLOTS) {
+      if (fixed.has(s)) continue;
       let best = null, bs = -1;
-      for (const it of S.items) {
-        if (it.slot !== type || used.has(it.id)) continue;
-        const s = G.itemScore(it); if (s > bs) { bs = s; best = it; }
+      for (const it of byType[G.slotType(s)] || []) { if (used.has(it.id)) continue; const v = G.itemScore(it) + (ks && it.set === ks ? 1e6 : 0); if ((ks && it.set === ks) || (cands[G.slotType(s)] || []).includes(it)) if (v > bs) { bs = v; best = it; } }
+      plan[s] = best ? best.id : plan[s]; if (best) used.add(best.id);
+    }
+    for (const ty in cands) if (ks) for (const it of byType[ty]) if (it.set === ks && !cands[ty].includes(it)) cands[ty].push(it);
+    const obj = p => {
+      const st = G.calcStats(p); let v = policyScore(st, pol);
+      if (ks) { const n = st.sets[ks] || 0; v *= 1 + (n >= setMax ? .6 : .12 * n); } // 選んだセットが揃うほど高く（揃えば単品の数値が少し低くても採用）
+      return v;
+    };
+    // 1部位ずつ入れ替えて、良くなれば採用（2周）
+    let cur = obj(plan);
+    for (let pass = 0; pass < 2; pass++) for (const s of G.SLOTS) {
+      if (fixed.has(s)) continue;
+      for (const it of cands[G.slotType(s)] || []) {
+        if (plan[s] === it.id || G.SLOTS.some(o => o !== s && plan[o] === it.id)) continue;
+        if (ks && it.set !== ks && (G.itemById(plan[s]) || {}).set === ks) continue; // 維持するセットの装備は、別の物に替えない
+        const old = plan[s]; plan[s] = it.id;
+        const v = obj(plan); if (v > cur * 1.0001) cur = v; else plan[s] = old;
       }
-      if (best) { plan[slot] = best.id; used.add(best.id); }
     }
     const changes = G.SLOTS.filter(s => plan[s] !== S.equip[s]);
     return { plan, changes };
@@ -1045,7 +1128,7 @@
     for (const c of W.chests) { if (c.opened) continue; const pd = W.dist[tileOf(c.x, c.y)]; if (pd >= 0 && pd < ld) { ld = pd; lt = c; } }
     if (lt) { H.goal = { k: 'loot', x: lt.x, y: lt.y + (lt.it ? 0 : 4) }; return; }
     // 6. 探索完了 → 下り階段
-    if (!W.complete) { W.complete = true; G.ui.toast('探索完了！ 階段へ向かう'); G.light(D.stairs.tx * T + 8, D.stairs.ty * T + 8, 90, 1.2, '#9fdcff'); }
+    if (!W.complete) { W.complete = true; G.ui.toast('探索完了！ 全部屋ボーナス・階段へ向かう'); gainCoins(G.COIN.chest(W.f) * .5, H.x, H.y, true); G.light(D.stairs.tx * T + 8, D.stairs.ty * T + 8, 90, 1.2, '#9fdcff'); } // マップを埋めきった小さなごほうび
     H.goal = { k: 'stairs', x: D.stairs.tx * T + 8, y: D.stairs.ty * T + 8 };
   }
   // 探索状況（HUD用）
@@ -1095,6 +1178,7 @@
     const durs = { dash: .24, combo: .42 * (1 + .35 * st2), spin: .34 * (1 + .5 * st2), wave: .26, thunder: .36 + .12 * st2, quake: .5 * (1 + .35 * st2) };
     // k＝動きの種類、sid＝技のID、el＝属性（キャラ専用技）、ex＝★3・★5の追加段階（連鎖数・範囲・斬撃数）
     H.act = { k: kind, sid: id, el: I.el, ex, col: sk.col, t: 0, dur: durs[kind], ang, tg, recast, dmg: H.st.atk * I.mult * H.st.spow, hit: new Set(), i: -1, done: false, stage: st2, area: I.area, n: 4 + 2 * st2 + (kind === 'combo' && sk.el === 'slash' ? 2 : 0) + ex * 2 };
+    if (G.bless && S.run && !recast) H.act.strideMul = G.bless.skillMul(); // 祝福「狩人の歩み」：歩いた距離で技を強化
     G.ui.skillFlash(id);
     if (recast) G.popText(H.x, H.y - 38, '再発動!', '#9fdcff', 8);
     if (kind === 'dash') G.sfx('dash');
@@ -1562,7 +1646,7 @@
       return;
     }
     G.sfx('chest');
-    gainCoins(G.COIN.chest(W.f) * (.8 + R() * .4), c.x, c.y - 4, true); // 宝箱：まとまった枚数のコイン
+    gainCoins(G.COIN.chest(W.f) * (.8 + R() * .4) * (c.rich ? 2.2 : 1), c.x, c.y - 4, true); // 宝箱：まとまった枚数のコイン（宝物庫の箱は多め）
     G.burst(c.x, c.y - 6, 22, ['#fff6c0', '#ffd84d', '#ffffff'], 80, .8, 1, 60);
     G.light(c.x, c.y, 80, .8, '#ffe8a0');
     H.thinkT = 0;
@@ -1751,7 +1835,7 @@
         if (solid(nx, ny + 6)) { dead = true; G.burst(p.x, p.y, 10, ['#9ef0ff', '#ffffff'], 60, .35, 1); }
         for (const e of W.enemies) {
           if (e.dead || p.hit.has(e) || !seen(e)) continue; // 暗いところの敵はすり抜ける
-          if (G.dist(nx, ny, e.x, e.y - 6) < p.r + e.r) { p.hit.add(e); hitEnemy(e, p.dmg, { src: p.src || 'skill', proc: true, ka: p.ang, kb: p.kb || 70, el: p.el || null }); G.burst(e.x, e.y - 9, 5, [p.col || '#9ef0ff', '#ffffff'], 60, .3, 1); if (p.one) { dead = true; break; } }
+          if (G.dist(nx, ny, e.x, e.y - 6) < p.r + e.r) { p.hit.add(e); hitEnemy(e, p.dmg, { src: p.src || 'skill', gen: p.gen, proc: !p.gen, ka: p.ang, kb: p.kb || 70, el: p.el || null }); G.burst(e.x, e.y - 9, 5, [p.col || '#9ef0ff', '#ffffff'], 60, .3, 1); if (p.one) { dead = true; break; } }
         }
         if (R() < .7) G.part(p.x, p.y + (R() - .5) * p.r, -p.vx * .1, -p.vy * .1, .3, p.col || '#9ef0ff', 1, 0);
       }
@@ -1838,8 +1922,9 @@
         while (f.done < f.pts.length - 1 && f.t >= (f.done + 1) * f.hop) {
           f.done++;
           const p = f.pts[f.done];
-          if (p.e && !p.e.dead) { hitEnemy(p.e, f.dmg, { src: f.src, canCrit: true, ka: 0, kb: 0 }); G.burst(p.x, p.y, 4 + Math.min(8, f.lv), ['#ffffff', '#bfe8ff', '#7fc8ff'], 70 + f.lv * 4, .3, 1); }
+          if (p.e && !p.e.dead) { hitEnemy(p.e, f.dmg, { src: f.src, gen: f.gen, canCrit: true, ka: 0, kb: 0 }); G.burst(p.x, p.y, 4 + Math.min(8, f.lv), ['#ffffff', '#bfe8ff', '#7fc8ff'], 70 + f.lv * 4, .3, 1); }
           if (f.done % 2 === 1) G.light(p.x, p.y, 36 + f.lv * 3, .22, '#7fb8ff');
+          if (f.done === f.pts.length - 1 && G.bless && S.run) G.bless.onBoltEnd(f); // 祝福「雷の残響」
         }
       }
       if (f.t >= f.dur) W.fx.splice(i, 1);
@@ -1880,6 +1965,7 @@
     const cb = G.combo; cb.t -= dt; cb.burstT -= dt; cb.pop = Math.max(0, cb.pop - dt * 5);
     if (cb.t <= 0 && cb.n) cb.n = 0;
     updHero(dt);
+    if (G.bless) G.bless.tick(dt); // 祝福（時間で起こる効果・遅れて起こる効果）
     updEnemies(dt);
     updProjs(dt);
     updDrops(dt);

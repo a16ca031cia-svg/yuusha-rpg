@@ -381,7 +381,7 @@
     const slots = G.SLOTS.map(s => {
       const it = G.itemById(S.equip[s]);
       return `<div class="slot ${sel.slot === s ? 'sel' : ''}" data-s="${s}"><div class="sn">${G.SLOT_N[s]}</div>
-        ${it ? `<img class="ic" src="${G.iconURL(it.slot)}" style="border-color:${rc(it.rar)}"><div style="min-width:0;flex:1"><div class="nm" style="color:${rc(it.rar)};font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(it.name)}</div><div class="small">${itemStats(it)}</div></div>` : '<div class="small">― 空き ―</div>'}</div>`;
+        ${it ? `<img class="ic" src="${G.iconURL(it.slot)}" style="border-color:${rc(it.rar)}"><div style="min-width:0;flex:1"><div class="nm" style="color:${rc(it.rar)};font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${it.lock ? '🔒' : ''}${esc(it.name)}</div><div class="small">${itemStats(it)}</div></div>` : '<div class="small">― 空き ―</div>'}</div>`;
     }).join('');
     const type = G.slotType(sel.slot);
     // 候補の並び：レア度順（同じレア度は評価の高い順）／評価順／新しい順
@@ -394,14 +394,17 @@
     b.innerHTML = `
       <div class="col eqA" style="width:300px;flex:none">
         <div class="row" style="justify-content:space-between"><span class="h">装備枠</span><button id="recBtn" class="${rec.changes.length ? 'primary' : ''}" ${rec.changes.length ? '' : 'disabled'} title="部位ごとに評価値が最も高い装備に付け替えます">おすすめ一括装備${rec.changes.length ? `（${rec.changes.length}部位）` : ''}</button></div>
-        <div class="row" style="justify-content:space-between"><span class="small">新しい装備を拾ったら自動でおすすめに付け替え</span><button id="autoEqBtn" class="${S.settings.autoEquip ? 'on' : ''}">自動装着 ${S.settings.autoEquip ? 'ON' : 'OFF'}</button></div>${slots}
+        <div class="row" style="justify-content:space-between"><span class="small">新しい装備を手に入れたら自動でおすすめに付け替え</span><button id="autoEqBtn" class="${S.settings.autoEquip ? 'on' : ''}">自動装着 ${S.settings.autoEquip ? 'ON' : 'OFF'}</button></div>
+        <div class="eqPol"><div class="row"><span class="small">育成方針</span><select id="eqPol">${Object.entries(G.EQ_POLICY).map(([k, p]) => `<option value="${k}" ${(S.settings.eqPolicy || 'auto') === k ? 'selected' : ''}>${p.n}</option>`).join('')}</select>
+          <span class="small">維持するセット</span><select id="eqKeep"><option value="">なし</option>${Object.entries(G.SETS).map(([k, t]) => `<option value="${k}" ${S.settings.keepSet === k ? 'selected' : ''}>${esc(t.n)}</option>`).join('')}</select></div>
+          <div class="small">${esc(G.EQ_POLICY[S.settings.eqPolicy || 'auto'].d)}　🔒固定した装備は外しません</div></div>${slots}
         <div class="h" style="margin-top:6px">能力値</div>${statGrid(st)}
       </div>
       <div class="col scroll eqB" style="width:300px;flex:none">
         <div class="h">総合力 <span style="font-size:18px;color:#ffe9a0">${G.fmtBig(G.powerOf(st))}</span></div>
         <div class="h">付与効果（実効レベル＝装着中の合算）</div>${effList(st)}${activeSets(st)}
         <div class="h" style="margin-top:8px">現在の${G.SLOT_N[sel.slot]}</div>
-        ${itemCard(curIt, curIt ? `<div class="btnrow" style="margin-top:6px"><button data-act="fav" data-id="${curIt.id}">${curIt.fav ? '★ お気に入り解除' : '☆ お気に入り'}</button><button data-act="unequip">外す</button></div>` : '')}
+        ${itemCard(curIt, curIt ? `<div class="btnrow" style="margin-top:6px"><button data-act="lock" data-id="${curIt.id}" class="${curIt.lock ? 'on' : ''}">${curIt.lock ? '🔒 固定中' : '🔓 固定する'}</button><button data-act="fav" data-id="${curIt.id}">${curIt.fav ? '★ お気に入り解除' : '☆ お気に入り'}</button><button data-act="unequip">外す</button></div>` : '')}
       </div>
       <div class="col eqC" style="flex:1;min-width:0">
         <div class="row" style="justify-content:space-between"><span class="h">${G.SLOT_N[type]}の候補（${cands.length}件）</span><span class="row"><select id="eqSort">${[['rar', 'レア度順'], ['score', '評価順'], ['new', '新しい順']].map(([k, n]) => `<option value="${k}" ${sel.eqSort === k ? 'selected' : ''}>${n}</option>`).join('')}</select>${recId ? `<button id="recOne" class="primary">おすすめを装備</button>` : ''}</span></div>
@@ -409,6 +412,8 @@
         <div class="col scroll" style="flex:1">${cands.slice(0, 80).map(it => itemRow(it, sel.item === it.id, curIt ? G.itemScore(curIt) : 0, it.id === recId)).join('') || '<div class="small">候補がありません</div>'}</div>
       </div>`;
     $('eqSort').onchange = e => { sel.eqSort = e.target.value; ui.render(); };
+    $('eqPol').onchange = e => { S.settings.eqPolicy = e.target.value; if (S.settings.autoEquip) G.autoEquip(); G.save(); ui.render(); };
+    $('eqKeep').onchange = e => { S.settings.keepSet = e.target.value; if (S.settings.autoEquip) G.autoEquip(); G.save(); ui.render(); };
     $('autoEqBtn').onclick = () => { S.settings.autoEquip = !S.settings.autoEquip; if (S.settings.autoEquip) G.autoEquip(); G.save(); ui.render(); };
     if ($('recOne')) $('recOne').onclick = () => { G.equipItem(sel.slot, recId); sel.item = null; G.sfx('pickup', 3); ui.toast('おすすめ装備に変更しました'); ui.render(); ui.upgradeCheck(); };
     const rb = $('recBtn');
@@ -447,6 +452,7 @@
       if (a === 'equip') { G.equipItem(sel.slot, id); sel.item = null; G.sfx('pickup', 1); }
       if (a === 'unequip') G.unequip(sel.slot);
       if (a === 'fav') { const it = G.itemById(id); it.fav = !it.fav; G.save(); }
+      if (a === 'lock') { const it = G.itemById(id); it.lock = !it.lock; if (it.lock) it.fav = true; ui.toast(it.lock ? '🔒 固定しました（自動装備で外しません・分解から保護）' : '固定を解除しました'); G.save(); } // 固定はお気に入り（分解から保護）も兼ねる
       if (a === 'sell1') { const r = G.dismantle([id]); if (r.n) ui.toast(`分解しました　強化素材 +${r.m}`); sel.item = null; G.save(); }
       if (a === 'enh') { const err = G.enhance(id); ui.toast(err || '強化しました'); }
       ui.render(); ui.refreshSkills();

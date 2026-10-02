@@ -28,6 +28,20 @@
   function closeAll() { queue.length = 0; if (cur) { cur = null; $('uxPop').classList.add('hidden'); } }
   const refreshCur = () => { if (cur) cur.render($('uxBody')); };
 
+  // ---------------------------------------------------------- 祝福の方針（ホームで選ぶ）と、祝福・覚醒の一覧
+  G.openBlessPol = () => show({
+    key: 'blessPol', title: '祝福の方針', render(b) {
+      const cur = G.S.settings.blessPol || 'auto';
+      b.innerHTML = `<div class="small">探索中、祭壇の部屋・守護者・階層の主から祝福を自動で得ます（帰還や力尽きると消えます）。選んだ系統が出やすくなります。</div>
+        <div class="polGrid">${Object.entries(G.BLESS_POL).map(([k, n]) => `<button data-pol="${k}" class="${k === cur ? 'primary' : ''}">${n}</button>`).join('')}</div>
+        <div class="h" style="margin-top:10px">祝福（12種類・最大Lv3）</div>
+        ${Object.values(G.BLESS).map(x => `<div class="blRow"><span class="bl" style="--c:${x.col}">${x.ic}</span><div><b>${esc(x.n)}</b><div class="small">${esc(x.d(1))}</div></div></div>`).join('')}
+        <div class="h" style="margin-top:10px">覚醒（2つの祝福がそろうと発動）</div>
+        ${G.AWAKEN.map(a => `<div class="blRow"><span class="bl aw" style="--c:${a.col}">覚</span><div><b style="color:${a.col}">${esc(a.n)}</b>　<span class="small">${a.need.map(k => G.BLESS[k].n).join(' ＋ ')}</span><div class="small">${esc(a.d)}</div></div></div>`).join('')}`;
+      b.querySelectorAll('[data-pol]').forEach(x => x.onclick = () => { G.S.settings.blessPol = x.dataset.pol; G.save(); G.sfx('click'); refreshCur(); });
+    }
+  });
+
   // ---------------------------------------------------------- デイリーミッション
   function claimable() { const d = G.daily(); let n = G.DAILY.filter(m => !d.claimed[m.id] && G.dailyDone(m)).length; if (!d.claimed.all && G.DAILY.every(m => d.claimed[m.id])) n++; return n; }
   G.openMissions = () => show({
@@ -78,6 +92,31 @@
     });
   }
 
+  // ---------------------------------------------------------- 結果画面の「何が強かったか」
+  const SRC_N = { atk: '通常攻撃', skill: '技', ult: '必殺技', chain: '連鎖雷', follow: '追撃斬', boom: '撃破爆発', burn: '燃焼', poison: '毒' };
+  function srcName(k) {
+    if (k.startsWith('sk_')) { const id = k.slice(3); try { return G.skillEvo(id).names[G.skillStageOf(G.skillLvAt(id, G.S.level))] || G.SKILLS[id].n; } catch (e) { return (G.SKILLS[id] || {}).n || '技'; } }
+    return SRC_N[k] || (G.bless && G.bless.src[k]) || k;
+  }
+  function breakdown(lr) {
+    const d = lr.dmg || {}, tot = Object.values(d).reduce((a, b) => a + b, 0);
+    let h = '';
+    if (tot > 0) {
+      const top = Object.entries(d).sort((a, b) => b[1] - a[1]).slice(0, 4);
+      h += `<div class="rsH">今回の主力：<b>${esc(srcName(top[0][0]))}</b>（総ダメージの${Math.round(top[0][1] / tot * 100)}%）</div>` +
+        top.map(([k, v]) => `<div class="rsBar"><span>${esc(srcName(k))}</span><i><b style="width:${(v / tot * 100).toFixed(1)}%"></b></i><em>${Math.round(v / tot * 100)}%</em></div>`).join('');
+    }
+    const notes = [];
+    if (lr.burst >= 3) notes.push(`最大同時撃破 <b>${lr.burst}体</b>`);
+    const pv = G.S.prevRun;
+    if (pv) { const df = lr.floor - pv.floor; notes.push(df > 0 ? `前回より<b class="up">${df}階深く</b>到達` : df < 0 ? `前回より${-df}階浅い` : '前回と同じ階まで到達'); }
+    if (notes.length) h += `<div class="small rsNotes">${notes.join('　')}</div>`;
+    const bl = Object.entries(lr.bless || {});
+    if (bl.length) h += `<div class="rsBless"><span class="small">祝福：</span>${bl.map(([id, l]) => { const b = G.BLESS[id]; return b ? `<span class="bl" style="--c:${b.col}">${b.ic}<i>${l}</i></span>${esc(b.n)}` : ''; }).join(' ')}</div>`;
+    if ((lr.awk || []).length) h += `<div class="rsAwk">覚醒：${lr.awk.map(a => { const A = G.AWAKEN.find(x => x.id === a); return A ? `<b style="color:${A.col}">${esc(A.n)}</b>` : ''; }).join('・')}</div>`;
+    return h;
+  }
+
   // ---------------------------------------------------------- 探索の結果
   let prevMax = 0, lastRunSeen = null, inited = false;
   const depart0 = G.depart;
@@ -95,6 +134,7 @@
             <div><span>最大コンボ</span><b data-cnt="${lr.best}">0</b></div><div><span>コイン</span><b class="gold" data-cnt="${lr.coins || 0}" data-pre="+">+0</b></div>
             <div><span>レベル</span><b>${prevLv && prevLv < G.S.level ? 'Lv' + prevLv + '→' : 'Lv'}${G.S.level}</b></div><div><span>時間</span><b>${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}</b></div>
           </div>
+          ${breakdown(lr)}
           ${dead ? `<div class="small" style="margin-top:6px">${G.S.coins >= G.GACHA.single ? 'ヒント：コインが' + G.S.coins.toLocaleString() + '枚あります。ガチャで装備を手に入れて強くなろう！' : 'ヒント：敵を倒してコインを集め、ガチャで装備や仲間を手に入れて強くなろう。'}</div>` : ''}
           ${G.S.coins >= G.GACHA.single ? `<div class="lbBtn"><button id="rsGacha" class="gachaBtn big">ガチャを引く（${Math.floor(G.S.coins / G.GACHA.single)}回分）</button></div>` : ''}
           <div class="lbBtn">${G.resumeRun ? '<button id="rsGo" class="primary big">続きから出撃</button>' : `<button id="rsGo" class="primary big">B${G.checkpoint()}Fから出撃</button>`}<button id="rsOk">ホームへ</button></div>`;
@@ -121,7 +161,8 @@
     // 自動出撃がONの時は、放置で遊べるようにポップアップを数秒で自動で閉じる（ログインボーナスは自動で受け取る）
     const autoOn = home && !S.settings.waitHome && !G.manualStart;
     const neverPulled = (S.gachaSeq || 1) <= 1 && S.coins >= G.GACHA.single; // まだ一度もガチャを引いていない人には、ガチャの案内を出したままにする
-    if (cur && autoOn && cur.key !== 'mission') {
+    if (G.bless) G.bless.refreshHud(); // 状態の枠の祝福（変わった時だけ描き直す）
+    if (cur && autoOn && cur.key !== 'mission' && cur.key !== 'blessPol') {
       cur.t = (cur.t || 0) + dt; const lim = cur.key === 'result' ? (neverPulled ? 12 : 6) : 10; // ガチャ未経験なら案内を長めに出す
       $('uxAuto').textContent = Math.ceil(lim - cur.t) + '秒後に閉じます';
       if (cur.t >= lim) { if (cur.key === 'login' && G.loginReady()) { const r = G.loginClaim(); if (r) { ui.toast('ログインボーナス コイン +' + r + '枚'); G.save(); } } close(); }

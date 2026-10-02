@@ -25,6 +25,7 @@
         <div class="hubChar" id="hbChar"><div class="hubBody" id="hbBody"><img id="hbArt" alt="" draggable="false"><canvas id="hbPix" width="140" height="144"></canvas></div></div>
         <div class="hubBubble" id="hbBubble"></div>
         <button id="hbView" class="hubView hidden" title="イラストとSDキャラを切り替え"></button>
+        <button id="hbPol" class="hubPol" title="探索中に得る祝福の方針"></button>
         <div class="hubPlate"><div class="hcEl" id="hbEl"></div><div class="hcNm" id="hbCName"></div><div class="hcSt" id="hbStar"></div></div>
       </div>
       <div class="hubLeft">
@@ -52,6 +53,7 @@
     $('hbGo1').onclick = () => G.depart(false, 1);
     $('hbWait').onclick = () => { G.S.settings.waitHome = !G.S.settings.waitHome; ui.refreshHome(); G.save(); refresh(); };
     $('hbChar').onclick = talk;
+    $('hbPol').onclick = e => { e.stopPropagation(); G.openBlessPol && G.openBlessPol(); };
     $('retBtn').onclick = () => {
       const f = G.W && G.W.f;
       ui.confirm('探索をやめてホームに戻りますか？\n' + (f ? 'B' + f + 'F の' : '') + '続きから再出撃できます。', () => G.retreat());
@@ -114,6 +116,7 @@
       $('hbChar').style.setProperty('--cc', C.col); $('hbChar').classList.toggle('sd', !art);
       $('hbView').classList.toggle('hidden', !C.gacha); $('hbView').textContent = art ? 'SD' : 'イラスト';
     }
+    $('hbPol').textContent = '✦ 祝福：' + (G.BLESS_POL ? G.BLESS_POL[S.settings.blessPol || 'auto'] : 'おまかせ');
     $('hbPity').innerHTML = 'UR確定まで あと<b>' + (G.GACHA.pity - S.pity) + '</b>回<span class="bnPrice">　単発 ' + G.GACHA.single + '枚 / 10連 ' + G.GACHA.ten.toLocaleString() + '枚</span>';
     // ログインボーナス
     const lg = $('hbLogin');

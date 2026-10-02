@@ -570,6 +570,7 @@
     // Yソートで描画
     const list = [];
     for (const c of W.chests) list.push({ y: c.y, k: 0, o: c });
+    for (const s of W.specials || []) if (s.kind === 'altar') list.push({ y: s.y, k: 4, o: s });
     for (const d of W.drops) list.push({ y: d.y, k: 1, o: d });
     for (const e of W.enemies) list.push({ y: e.y + (e.type === 'bat' ? 6 : 0), k: 2, o: e });
     list.push({ y: H.y, k: 3, o: H });
@@ -595,6 +596,15 @@
         const ic = G.ICONW[d.it.slot], iw = ic.width * PX, ih = ic.height * PX;
         ctx.drawImage(ic, snap(d.x) - iw / 2, snap(d.y) - ih + 2 + bob, iw, ih);
         if (Math.sin(t * 6 + d.x) > .7) { ctx.fillStyle = rc; ctx.fillRect(snap(d.x) + 3, snap(d.y) - ih + 1 + bob, PX, PX); }
+      } else if (it.k === 4) {
+        // 祝福の祭壇：石の台の上に浮かぶ結晶。使う前は金色に光り、使った後は暗い
+        const s = it.o; if (!W.explored[G.tileOfD(D, s.x, s.y)]) continue;
+        const used = s.used || W.roomSeen[s.room], x0 = snap(s.x), y0 = snap(s.y), bob = used ? 0 : Math.sin(t * 2.5) * 1.5;
+        if (!used) { const g = ctx.createRadialGradient(x0, y0 - 10, 0, x0, y0 - 10, 26); g.addColorStop(0, 'rgba(255,230,140,.55)'); g.addColorStop(1, 'rgba(255,230,140,0)'); ctx.fillStyle = g; ctx.fillRect(x0 - 26, y0 - 36, 52, 52); }
+        ctx.fillStyle = '#3a3448'; ctx.fillRect(x0 - 7, y0 - 6, 14, 7); ctx.fillStyle = '#5a5470'; ctx.fillRect(x0 - 7, y0 - 6, 14, 2); ctx.fillStyle = '#2a2436'; ctx.fillRect(x0 - 5, y0 - 10, 10, 4);
+        ctx.fillStyle = used ? '#6a6480' : '#ffe27a'; ctx.beginPath(); ctx.moveTo(x0, y0 - 24 + bob); ctx.lineTo(x0 + 5, y0 - 17 + bob); ctx.lineTo(x0, y0 - 11 + bob); ctx.lineTo(x0 - 5, y0 - 17 + bob); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = used ? '#8a84a0' : '#fffbe6'; ctx.fillRect(x0 - 2, y0 - 21 + bob, 2, 3);
+        if (!used && Math.sin(t * 4 + s.x) > .6) { ctx.fillStyle = '#fff6c0'; ctx.fillRect(x0 + 4, y0 - 26 + bob, 1, 1); }
       } else if (it.k === 2) drawEnemy(it.o);
       else drawHero(H);
     }

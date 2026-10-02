@@ -142,6 +142,26 @@
       const tx = rng.int(r.x + 1, r.x + r.w - 2), ty = r.y;
       chests.push({ x: tx * T + 8, y: ty * T + 11, mimic: f >= 4 && rng.chance(.12) }); // まれに宝箱に化けたミミック
     }
+    // 特殊な部屋：祝福の祭壇（静かな部屋・入ると祝福）・宝物庫（コインの多い宝箱が並ぶ）・守護者の間（強敵1体・倒すと祝福2つ）
+    const specials = [];
+    const inRoom = (r, x, y) => x >= r.x * T && x < (r.x + r.w) * T && y >= r.y * T && y < (r.y + r.h) * T;
+    const freeRooms = rng.shuffle(rooms.filter(r => r !== start && r !== far && !r.mh && r.w * r.h >= 30));
+    const take = kind => { const r = freeRooms.shift(); if (!r) return null; r.kind = kind; specials.push({ kind, room: r.id, x: r.cx * T + 8, y: r.cy * T + 8 }); return r; };
+    if (rng.chance(f % 5 === 4 ? 1 : .5)) { // ボスの前の階は必ず祭壇
+      const r = take('altar');
+      if (r) for (let i = enemies.length - 1; i >= 0; i--) if (inRoom(r, enemies[i].x, enemies[i].y)) enemies.splice(i, 1);
+    }
+    if (f >= 2 && rng.chance(.22)) {
+      const r = take('vault');
+      if (r) { const n = rng.int(3, 5); for (let i = 0; i < n; i++) { const tx = r.x + 1 + Math.round(i * (r.w - 3) / Math.max(1, n - 1)); chests.push({ x: tx * T + 8, y: r.y * T + 11, mimic: false, rich: true }); } }
+    }
+    if (f >= 3 && rng.chance(.3)) {
+      const r = take('guard');
+      if (r) {
+        for (let i = enemies.length - 1; i >= 0; i--) if (inRoom(r, enemies[i].x, enemies[i].y)) enemies.splice(i, 1);
+        enemies.push({ type: f >= 6 ? 'golem' : 'goblin', x: r.cx * T + 8, y: r.cy * T + 8, guardian: true, elite: true });
+      }
+    }
     // 松明（部屋の上壁）
     const torches = [];
     for (const r of rooms) {
@@ -162,7 +182,7 @@
       else if (r < .075) decos.push({ k: 'pebble', tx, ty });
       else if (r < .11) decos.push({ k: theme.deco, tx, ty });
     }
-    return { f, seed, W, H, tiles, roomId, rooms, start: { tx: start.cx, ty: start.cy, room: start.id }, stairs, enemies, chests, torches, decos, theme, tier };
+    return { f, seed, W, H, tiles, roomId, rooms, start: { tx: start.cx, ty: start.cy, room: start.id }, stairs, enemies, chests, torches, decos, theme, tier, specials };
   };
 
   // ホーム（小さな部屋）

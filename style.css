@@ -674,3 +674,23 @@ body.touch #title .tNote{display:none}
 /* ホームのキャラをタップした時のキラキラ */
 .tapStar{position:absolute;z-index:3;pointer-events:none;font-style:normal;font-size:16px;transform:translate(-50%,-50%);text-shadow:0 0 6px currentColor;animation:tapStar .75s ease-out forwards}
 @keyframes tapStar{0%{transform:translate(-50%,-50%) scale(.4);opacity:1}100%{transform:translate(calc(-50% + var(--tx)),calc(-50% + var(--ty))) scale(1.1) rotate(90deg);opacity:0}}
+/* ===================== 祝福・覚醒・育成方針 ===================== */
+.blessRow{display:flex;flex-wrap:wrap;gap:3px;margin-top:4px}
+.bl{position:relative;display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:5px;font-size:12px;color:#111;background:var(--c);box-shadow:0 0 0 1px #000,0 0 6px var(--c);font-style:normal;vertical-align:middle}
+.bl i{position:absolute;right:-4px;bottom:-4px;font-size:9px;line-height:11px;min-width:11px;padding:0 1px;border-radius:5px;background:#120f19;color:#fff;font-style:normal;box-shadow:0 0 0 1px #000}
+.bl.aw{animation:blAw 1.2s ease-in-out infinite;box-shadow:0 0 0 1px #000,0 0 10px var(--c),0 0 18px #fff}
+@keyframes blAw{50%{filter:brightness(1.4)}}
+.blRow{display:flex;gap:8px;align-items:flex-start;margin-top:6px}.blRow .bl{flex:none;margin-top:2px}
+.polGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:6px;margin-top:8px}
+.hubView.hidden + .hubPol{bottom:2%} /* 切り替えボタンがない時（勇者）は右下の隅へ */
+.hubPol{position:absolute;right:2%;bottom:calc(6% + 44px);z-index:2;padding:5px 12px;border-radius:16px;font-size:12px;background:rgba(10,8,18,.85);border:2px solid #a8f060;color:#d8ffb0}
+.eqPol{margin:4px 0 6px;padding:6px 8px;border-radius:6px;background:rgba(168,240,96,.07);border:1px solid rgba(168,240,96,.35)}
+.eqPol .row{gap:6px;flex-wrap:wrap;align-items:center}
+.rsH{margin-top:10px;font-size:14px}.rsH b{color:#ffe36a}
+.rsBar{display:flex;align-items:center;gap:6px;font-size:12px;margin-top:3px}
+.rsBar span{width:7.5em;flex:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rsBar i{flex:1;height:8px;background:#0c0a12;border-radius:4px;overflow:hidden}.rsBar i b{display:block;height:100%;background:linear-gradient(90deg,#ff9a4a,#ffe36a)}
+.rsBar em{width:3em;text-align:right;font-style:normal;color:#ffe9a0}
+.rsNotes{margin-top:6px}.rsNotes .up{color:#7fff8a}
+.rsBless{margin-top:6px;font-size:12px;display:flex;flex-wrap:wrap;gap:4px 8px;align-items:center}
+.rsAwk{margin-top:4px;font-size:13px}
