@@ -734,3 +734,6 @@ body.touch #title .tNote{display:none}
 .zk.boss{border-color:rgba(255,160,80,.45);background:rgba(255,120,40,.07)}
 .supBox{margin-top:8px;padding:6px 8px;border:1px solid var(--line);border-radius:8px;background:rgba(120,255,170,.05)}.supBox.on{border-color:rgba(120,255,170,.5);background:rgba(120,255,170,.1)}.supBox button{padding:4px 8px;font-size:12px}
 .skBr{display:flex;gap:3px;margin-top:4px}.skBr button{padding:2px 8px;font-size:12px;min-width:0}.skBr button.on{background:linear-gradient(#6a5a2a,#4a3e1a);border-color:#ffd27a;color:#fff1c0}.skBr button:disabled{opacity:.35}
+.gSure{display:block;font-size:10px;letter-spacing:0;color:#ffe36a;line-height:1.1}
+.upTag{display:block;font-size:10px;color:#7fff8a;line-height:1.2}.upTag.eq{color:#ffe36a}.upTag.sure{color:#ffb0f0}
+.rsBossHp{display:flex;align-items:center;gap:6px;font-size:12px;margin-bottom:4px;flex-wrap:wrap}.rsBossHp i{flex:1;min-width:80px;height:8px;background:#2a1010;border:1px solid #000;position:relative}.rsBossHp i b{position:absolute;left:0;top:0;bottom:0;background:linear-gradient(#ff6a4a,#b0201a)}.rsBossHp em{font-style:normal;color:#ffb4a0}.rsBossHp strong{color:#ffe36a;font-weight:normal;animation:tBlink 1s steps(2) infinite}

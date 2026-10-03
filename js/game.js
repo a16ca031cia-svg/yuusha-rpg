@@ -492,7 +492,7 @@
     G.prepareChunks(W, H.x, H.y); // 地形の塊を事前生成（暗転中）
     G.onTileChange(true);
     // 最深記録の更新を告知
-    if (f > S.maxFloor && S.maxFloor > 0 && !snap) setTimeout(() => { G.ui.toast('最深記録更新！ B' + f + 'F'); G.sfx('learn'); }, 1400);
+    if (f > S.maxFloor && S.maxFloor > 0 && !snap) setTimeout(() => { if (G.W !== W) return; G.ui.callout({ text: 'NEW RECORD!', sub: '最深記録 更新　B' + f + 'F', tone: 'pink', prio: 2, dur: 1.3, size: .9, flash: .2, flashCol: '#ffd0f0' }); G.sfx('learn'); }, 2500);
     if (f > S.maxFloor) {
       S.maxFloor = f;
       if (f >= 6 && (f - 1) % 5 === 0) { S.cpBack = 0; setTimeout(() => G.ui.toast('中継地点 B' + f + 'F に到達！ 次からここから出撃できます'), 1600); } // 新しい中継地点
@@ -548,7 +548,7 @@
       // 今回の挑戦の戦績を記録してホームで表示
       const rs = S.run && S.run.rs;
       S.prevRun = S.lastRun ? { floor: S.lastRun.floor, kills: S.lastRun.kills, start: S.lastRun.start || 1, ch: S.lastRun.ch } : null; // 結果画面の「前回との比較」用
-      S.lastRun = rs ? { floor: W.f, kills: rs.kills, items: rs.items, best: rs.best, t: Math.round(rs.t), coins: rs.coins || 0, start: (S.run && S.run.start) || 1, dmg: rs.dmg || {}, taken: rs.taken || {}, takenK: rs.takenK || {}, lastHit: rs.lastHit || "", mob: rs.mob || 0, burst: rs.maxBurst || 0, bless: (S.run && S.run.bless) || {}, awk: (S.run && S.run.awk) || [], ch: S.cur } : null;
+      S.lastRun = rs ? { floor: W.f, kills: rs.kills, items: rs.items, best: rs.best, t: Math.round(rs.t), coins: rs.coins || 0, start: (S.run && S.run.start) || 1, dmg: rs.dmg || {}, taken: rs.taken || {}, takenK: rs.takenK || {}, lastHit: rs.lastHit || "", mob: rs.mob || 0, burst: rs.maxBurst || 0, bless: (S.run && S.run.bless) || {}, awk: (S.run && S.run.awk) || [], ch: S.cur, bossHp: W.boss && !W.boss.dead && W.boss.awake ? Math.max(1, Math.round(W.boss.hp / W.boss.maxHp * 100)) : null, bossN: W.boss ? W.boss.name : "" } : null;
       recRun(S.lastRun); // キャラごとの記録
       // 中継地点の調整：始めた階から1階も進めずに力尽きたら次は1段浅く、3階以上進めたら1段深く（最深の中継地点まで）
       if (S.run && W.f) { const prog = W.f - (S.run.start || 1); if (prog <= 0) S.cpBack = (S.cpBack || 0) + 1; else if (prog >= 3) S.cpBack = Math.max(0, (S.cpBack || 0) - 1); }
@@ -711,7 +711,7 @@
   // 誰から・どんな攻撃でダメージを受けたか（結果画面の「敗因」用）
   function noteTaken(dmg, src) {
     const rs = S.run && S.run.rs; if (!rs || !src || !src.d) return;
-    const n = src.boss ? 'ボス ' + src.d.n : src.d.n, tk = rs.taken || (rs.taken = {});
+    const n = src.boss ? (src.bk ? src.name : 'ボス ' + src.d.n) : src.d.n, tk = rs.taken || (rs.taken = {});
     tk[n] = (tk[n] || 0) + dmg;
     (rs.takenK || (rs.takenK = {}))[n] = src.boss ? 'boss' : src.d.role;
     rs.lastHit = n;
@@ -1061,7 +1061,10 @@
     if (e.dead) return;
     e.dead = true; e.deadT = 0; e.frozen = 0;
     S.stats.kills++; G.dailyAdd('kills', 1);
-    { const rc = G.rec(), c = G.recCh(S.cur); c.kills++; if (!e.minion) rc.en[e.type] = (rc.en[e.type] || 0) + 1; if (e.boss) { c.bossKills++; const bk = e.bk || 'old'; rc.boss[bk] = (rc.boss[bk] || 0) + 1; } }
+    { const rc = G.rec(), c = G.recCh(S.cur); c.kills++; if (!e.minion) rc.en[e.type] = (rc.en[e.type] || 0) + 1; if (e.boss) { c.bossKills++; const bk = e.bk || 'old'; rc.boss[bk] = (rc.boss[bk] || 0) + 1; }
+      // はじめて倒した敵は図鑑に登録され、コインがもらえる
+      const first = e.boss && e.bk ? rc.boss[e.bk] === 1 : !e.minion && rc.en[e.type] === 1;
+      if (first) { const n = e.boss ? 1500 : 300; S.coins += n; G.ui.toast('図鑑に登録：' + (e.boss && e.bk ? G.bossKindAt(W.f).n : G.ENEMY[e.type].n) + '　コイン +' + n + '枚'); G.popText(e.x, e.y - 40, 'NEW!', '#7fff8a', 10); } }
     if (e.boss) { W.chests.push({ x: e.x, y: e.y + 4, mimic: false, rich: true, loot: true, opened: false, openT: 0 }); G.light(e.x, e.y, 120, 2, '#ffe8a0'); } // 階層の主の宝箱（装備が必ず入っている）
     if (e.treasure) { // 金の小鬼：コインがあふれ出し、ときどき装備も
       gainCoins(G.COIN.chest(W.f) * 3, e.x, e.y, true);
@@ -1177,6 +1180,7 @@
     }
     G.addItemRaw(it);
     G.ui.loot(it);
+    if (it.rar >= 3 && S.mode === 'dungeon') { G.ui.callout({ text: (it.rar >= 4 ? 'SSR+' : 'SSR') + ' 獲得!', sub: it.name, tone: 'pink', prio: 3, dur: 1.3, size: .9, flash: .3, flashCol: '#ffd0f0' }); G.sfx('lvup'); } // レアな装備を拾った時は大きく知らせる
     if (S.settings.autoEquip) G.autoEquip(); // 設定がONなら拾った時点でおすすめに付け替え
     G.runStats().items++;
     // 所持上限：保護されていない最低評価品から売却
@@ -1383,6 +1387,12 @@
           res.push({ t: 'eq', rr, it, dis: m });
         } else { G.addItemRaw(it); res.push({ t: 'eq', rr, it, dis: 0 }); }
       }
+    }
+    // 10連はSR以上が1つ以上確定：全部Rだったら最後の1枠をSRに引き直す
+    if (n >= 10 && !res.some(r => r.t === 'ur' || (r.it && r.it.rar >= 2))) {
+      const last = res[res.length - 1], it = G.genItem(floor, G.rng, { rar: 2 });
+      if (last.dis) S.mats.forge -= last.dis; else { const i = S.items.indexOf(last.it); if (i >= 0) S.items.splice(i, 1); G.itemMap.delete(last.it.id); }
+      G.addItemRaw(it); res[res.length - 1] = { t: 'eq', rr: 'SR', it, dis: 0, sure: true };
     }
     G.dailyAdd('pulls', n);
     const rec = { id: S.gachaSeq++, n, cost, res, pity: S.pity, seen: false };

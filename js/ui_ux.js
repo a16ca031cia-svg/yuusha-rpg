@@ -174,7 +174,8 @@
     const [n, v] = tk[0], role = (lr.takenK || {})[n] || 'melee', mob = (lr.mob || 0) >= 5;
     const tip = mob && role !== 'boss' ? ['敵に囲まれて倒れた（' + lr.mob + '体）', '範囲攻撃でまとめて倒すのがおすすめ', 'mob'] : ROLE_TIP[role] || ROLE_TIP.melee;
     const pol = tip[2], curPol = G.S.settings.eqPolicy || 'auto';
-    return `<div class="rsCause"><div class="rsCH">敗因：<b>${esc(tip[0])}</b></div>
+    const bh = lr.bossHp != null ? `<div class="rsBossHp"><span>${esc(lr.bossN || '階層の主')} の残りHP</span><i><b style="width:${lr.bossHp}%"></b></i><em>${lr.bossHp}%</em>${lr.bossHp <= 30 ? '<strong>あと少し！</strong>' : ''}</div>` : '';
+    return `<div class="rsCause">${bh}<div class="rsCH">敗因：<b>${esc(tip[0])}</b></div>
       <div class="small">一番ダメージを受けた相手：<b>${esc(n)}</b>（受けたダメージの${Math.round(v / tot * 100)}%）${lr.lastHit && lr.lastHit !== n ? '／とどめ：' + esc(lr.lastHit) : ''}</div>
       <div class="small">対策：${esc(tip[1])}。${coin}</div>
       ${pol !== curPol && G.EQ_POLICY[pol] ? `<button class="rsPol" data-pol="${pol}">育成方針を「${G.EQ_POLICY[pol].n}」にする</button>` : ''}</div>`;

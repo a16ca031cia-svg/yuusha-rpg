@@ -128,7 +128,7 @@
       ? `<b style="color:#ffb0f0">まだ持っていないキャラが優先！</b> URが出た時は ${urPool.map(c => esc(G.CHARS[c].n)).join('・')} から${urPool.length > 1 ? '等しい確率で' : '必ず'}出ます。1人あたり 約${urEach}%`
       : `URが出た時は${allUR.length}人から等しい確率。1人あたり 約${urEach}%`;
     // コインが足りない時は「あと何枚」かを出す
-    const btn = (n, cost) => `<button class="gBig ${S.coins >= cost && home ? 'primary' : ''}" data-pull="${n}" ${S.coins >= cost && home ? '' : 'disabled'}>${n === 1 ? '単発' : '10連'}<br><span class="small">${cost.toLocaleString()}枚</span>${S.coins < cost ? `<br><span class="gShort">あと${(cost - S.coins).toLocaleString()}枚</span>` : ''}</button>`;
+    const btn = (n, cost) => `<button class="gBig ${S.coins >= cost && home ? 'primary' : ''}" data-pull="${n}" ${S.coins >= cost && home ? '' : 'disabled'}>${n === 1 ? '単発' : '10連<span class="gSure">SR以上1つ確定</span>'}<br><span class="small">${cost.toLocaleString()}枚</span>${S.coins < cost ? `<br><span class="gShort">あと${(cost - S.coins).toLocaleString()}枚</span>` : ''}</button>`;
     b.innerHTML = `<div class="col scroll" style="flex:1;min-width:0">
       <div class="gHead"><div class="gTitle">英雄召喚ガチャ</div>
         <div class="gArts">${G.CHAR_ORDER.filter(c => G.CHARS[c].gacha).map(c => `<img src="${ART(c)}" alt="">`).join('')}</div></div>
@@ -255,7 +255,7 @@
       }
       const it = r.it, U = it.uq && G.UNIQUE[it.uq], col = U ? U.col : G.RARITY[it.rar].c;
       return `<div class="gCard ${U ? 'uq' : ''}" style="--cc:${col}"><div class="gPic"><img class="ic" src="${G.iconURL(it.slot, it.b)}" style="border-color:${col}" alt=""></div><div class="gRar" style="color:${col}">${U ? '<span class="uqtag">固有</span>' : G.RARITY[it.rar].n}</div>
-        <div class="gName" style="color:${col}">${esc(it.name)}</div><div class="gTag">${r.dis ? `分解済み 素材+${r.dis}` : G.SLOT_N[it.slot]}</div></div>`;
+        <div class="gName" style="color:${col}">${esc(it.name)}</div><div class="gTag">${r.dis ? `分解済み 素材+${r.dis}` : G.SLOT_N[it.slot] + (G.isEquipped(it.id) ? '<span class="upTag eq">装備中</span>' : G.itemScore(it) > ui.curScore(it.slot) ? '<span class="upTag">▲今より強い</span>' : '')}${r.sure ? '<span class="upTag sure">10連確定</span>' : ''}</div></div>`;
     }).join('');
     el.innerHTML = `<div class="gRes"><div class="h" style="font-size:18px;text-align:center">召喚結果（${rec.n}回）</div>
       <div class="gGrid">${cards}</div>
