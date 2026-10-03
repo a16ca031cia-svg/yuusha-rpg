@@ -141,11 +141,11 @@
     $('hpTxt').textContent = Math.ceil(hp) + ' / ' + mh + (H.shield > 0 ? `  (+${Math.round(H.shield)})` : '');
     $('lvTxt').textContent = S.level;
     $('expFill').style.width = (S.exp / G.expNeed(S.level) * 100) + '%';
-    $('floorTxt').textContent = S.mode === 'home' ? 'ホーム' : 'B' + (W ? W.f : 1) + 'F';
+    { const fe = $('floorTxt'), ft = S.mode === 'home' ? 'ホーム' : (W && !W.home && W.f % 5 ? '<small class="toBoss">ボスまで' + (5 - W.f % 5) + '階</small>' : W && W.f % 5 === 0 ? '<small class="toBoss boss">ボス階</small>' : '') + 'B' + (W ? W.f : 1) + 'F'; if (fe._t !== ft) { fe._t = ft; fe.innerHTML = ft; } } // 変わった時だけ書き換える
     $('bestTxt').textContent = '最深 B' + S.maxFloor + 'F';
     $('goldTxt').textContent = 'コイン ' + S.coins.toLocaleString() + '枚';
     const pr = G.progress();
-    $('progTxt').textContent = pr ? (pr.complete ? '探索完了 → 下り階段へ' : `部屋 ${pr.rooms}/${pr.roomsT}　敵 残り${pr.enemies}　宝箱 ${pr.chests}`) + (H.rush ? '　≫疾走中' : '') + (W && W.mod && G.FLOOR_MOD[W.mod] ? '　◆' + G.FLOOR_MOD[W.mod].n : '') + (W && !W.home && W.f % 5 ? '　ボスまであと' + (5 - W.f % 5) + '階' : '') : '';
+    $('progTxt').textContent = pr ? (pr.complete ? '探索完了 → 下り階段へ' : `部屋 ${pr.rooms}/${pr.roomsT}　敵 残り${pr.enemies}　宝箱 ${pr.chests}`) + (H.rush ? '　≫疾走中' : '') + (W && W.mod && G.FLOOR_MOD[W.mod] ? '　◆' + G.FLOOR_MOD[W.mod].n : '') : '';
     // 技クールダウン
     for (const d of document.querySelectorAll('#skills .sk[data-id]')) {
       const id = d.dataset.id;
@@ -195,9 +195,17 @@
       const i = G.tileOfD(D, ch.x, ch.y); if (!W.explored[i] || ch.opened) continue;
       x.fillStyle = '#ffd84d'; x.fillRect(Math.floor(ch.x / 16) * k, Math.floor(ch.y / 16) * k, k, k);
     }
+    // 特殊な部屋（見つけた所だけ）：使う前は明るい色の十字、使った後は暗く
+    const SPC = { altar: '#fff1a8', spring: '#7fdcff', library: '#ffd27a', horde: '#ff7a5a', guard: '#ff9a3c', vault: '#ffd84d' };
+    for (const s of W.specials || []) {
+      const i = G.tileOfD(D, s.x, s.y); if (!W.explored[i] || !SPC[s.kind]) continue;
+      const tx = Math.floor(s.x / 16) * k, ty = Math.floor(s.y / 16) * k, on = !s.used && !W.roomSeen[s.room];
+      x.globalAlpha = on ? 1 : .45; x.fillStyle = SPC[s.kind];
+      x.fillRect(tx - k, ty, k * 3, k); x.fillRect(tx, ty - k, k, k * 3); x.globalAlpha = 1;
+    }
     for (const e of W.enemies) {
       const i = G.tileOfD(D, e.x, e.y); if (e.dead || !W.vis[i]) continue;
-      x.fillStyle = e.boss ? '#ff9a3c' : '#e04a3a'; x.fillRect(Math.floor(e.x / 16) * k, Math.floor(e.y / 16) * k, k - 1, k - 1);
+      x.fillStyle = e.treasure ? '#ffe36a' : e.boss ? '#ff9a3c' : '#e04a3a'; x.fillRect(Math.floor(e.x / 16) * k, Math.floor(e.y / 16) * k, k - 1, k - 1);
     }
     x.fillStyle = '#ffffff'; x.fillRect(Math.floor(H.x / 16) * k - 1, Math.floor(H.y / 16) * k - 1, k + 1, k + 1);
   };

@@ -83,13 +83,21 @@
   // ---------------------------------------------------------- デイリーミッション
   function claimable() { const d = G.daily(); let n = G.DAILY.filter(m => !d.claimed[m.id] && G.dailyDone(m)).length; if (!d.claimed.all && G.DAILY.every(m => d.claimed[m.id])) n++; return n; }
   G.openMissions = () => show({
-    key: 'mission', title: 'デイリーミッション', render(b) {
+    key: 'mission', title: 'ミッション・実績', render(b) {
       const d = G.daily(), allDone = G.DAILY.every(m => d.claimed[m.id]);
       b.innerHTML = `<div class="small" style="margin-bottom:6px">毎日0時に新しくなります。達成したら「受け取る」でコインがもらえます。</div>` + G.DAILY.map(m => {
         const v = Math.min(m.need, d[m.id] || 0), done = v >= m.need, got = d.claimed[m.id];
         return `<div class="uxMis ${got ? 'got' : done ? 'done' : ''}"><div class="umL"><div class="umN">${esc(m.n)}</div><div class="dmBar"><i style="width:${v / m.need * 100}%"></i></div><div class="small">${v} / ${m.need}</div></div>
           <div class="umR">${got ? '<span class="small">受取済</span>' : done ? `<button data-claim="${m.id}" class="primary">受け取る<br><b>+${m.reward}</b></button>` : `<span class="gold">+${m.reward}</span>`}</div></div>`;
       }).join('') + `<div class="uxMis all ${d.claimed.all ? 'got' : allDone ? 'done' : ''}"><div class="umL"><div class="umN">すべて達成ボーナス</div></div><div class="umR">${d.claimed.all ? '<span class="small">受取済</span>' : allDone ? `<button data-claim="all" class="primary">受け取る<br><b>+${G.DAILY_ALL}</b></button>` : `<span class="gold">+${G.DAILY_ALL}</span>`}</div></div>`;
+      // 実績：達成すると自動で受け取り。未達成のうち近いものから並べる
+      if (G.ACH) {
+        const A = G.S.ach || {}, list = G.ACH.map(a => ({ a, v: Math.min(a.need, a.v()), got: !!A[a.id] }));
+        const open = list.filter(x => !x.got).sort((p, q) => q.v / q.a.need - p.v / p.a.need), got = list.filter(x => x.got).length;
+        b.innerHTML += `<div class="h" style="margin-top:10px">実績（${got} / ${list.length}）</div><div class="small" style="margin-bottom:4px">達成すると自動でコインがもらえます。</div>` +
+          open.slice(0, 6).map(x => `<div class="uxMis"><div class="umL"><div class="umN">${esc(x.a.n)}</div><div class="dmBar"><i style="width:${x.v / x.a.need * 100}%"></i></div><div class="small">${x.v.toLocaleString()} / ${x.a.need.toLocaleString()}</div></div><div class="umR"><span class="gold">+${x.a.r.toLocaleString()}</span></div></div>`).join('') +
+          (open.length > 6 ? `<div class="small" style="text-align:center">ほか ${open.length - 6} 件</div>` : '');
+      }
       b.querySelectorAll('[data-claim]').forEach(x => x.onclick = () => {
         const r = G.dailyClaim(x.dataset.claim);
         if (r) { ui.callout({ text: 'MISSION CLEAR', sub: 'コイン +' + r + '枚', tone: 'gold', prio: 5, dur: 1.4, size: .75, flash: .25 }); G.sfx('pickup', 3); G.save(); }
@@ -120,9 +128,9 @@
       key: 'tips', title: 'あそびかた', render(b) {
         b.innerHTML = `<div class="uxTips">
           <div class="tp"><b>1</b><div><div class="tpT">勇者は自動で戦います</div><div class="small">「出撃」を押すとダンジョンへ。探索・戦闘・階段を下りるのは全部おまかせ。速さ（×2・×4）も変えられます。</div></div></div>
-          <div class="tp"><b>2</b><div><div class="tpT">装備は「おすすめ一括装備」</div><div class="small">拾った装備は「装備」画面のボタン1つで強いものに付け替え。いらない装備は分解して強化素材に。</div></div></div>
+          <div class="tp"><b>2</b><div><div class="tpT">装備は自動で付け替え</div><div class="small">手に入れた装備は、育成方針に合わせて自動で一番よいものを装備します。階層の主を倒すと装備入りの宝箱も。</div></div></div>
           <div class="tp"><b>3</b><div><div class="tpT">コインでガチャを引こう</div><div class="small">敵を倒すとコインがたまります。ガチャで仲間（UR）や装備が手に入ります。</div></div></div>
-          <div class="tp"><b>4</b><div><div class="tpT">ミッションとログインボーナス</div><div class="small">毎日のミッションを達成するとコインがもらえます。</div></div></div>
+          <div class="tp"><b>4</b><div><div class="tpT">ミッション・実績・ログインボーナス</div><div class="small">毎日のミッションや実績を達成するとコインがもらえます。その日はじめての出撃はコイン1.5倍！</div></div></div>
         </div><div class="lbBtn"><button id="tpGo" class="primary big">はじめる！</button></div>`;
         $('tpGo').onclick = close;
       },
@@ -192,7 +200,7 @@
       key: 'result', title: dead ? '探索失敗…' : '探索結果', cls: dead ? 'result dead' : 'result', render(b) {
         // ランク：何階進めたか・最大コンボで決める
         const gain = lr.floor - (lr.start || 1), rank = gain >= 10 || lr.best >= 150 ? 'S' : gain >= 6 || lr.best >= 80 ? 'A' : gain >= 3 || lr.best >= 30 ? 'B' : 'C';
-        b.innerHTML = `<div class="rsTop"><div class="rsRank r${rank}">${rank}</div><div>${rec ? '<div class="rsRec">最深記録 更新！</div>' : ''}<div class="rsMsg">${esc(msg || '')}</div><div class="small">B${lr.start || 1}F → B${lr.floor}F（${Math.max(0, gain)}階 進んだ）</div></div></div>
+        b.innerHTML = `<div class="rsTop"><div class="rsRank r${rank}">${rank}</div><div>${rec ? '<div class="rsRec">最深記録 更新！</div>' : ''}${(lr.nb || []).length ? '<div class="rsNb">自己ベスト更新：' + lr.nb.join('・') + '</div>' : ''}<div class="rsMsg">${esc(msg || '')}</div><div class="small">B${lr.start || 1}F → B${lr.floor}F（${Math.max(0, gain)}階 進んだ）</div></div></div>
           <div class="rsGrid">
             <div><span>到達</span><b>B${lr.floor}F</b></div><div><span>撃破</span><b data-cnt="${lr.kills}">0</b></div>
             <div><span>最大コンボ</span><b data-cnt="${lr.best}">0</b></div><div><span>コイン</span><b class="gold" data-cnt="${lr.coins || 0}" data-pre="+">+0</b></div>

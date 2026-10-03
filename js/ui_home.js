@@ -26,6 +26,7 @@
         <div class="hubBubble" id="hbBubble"></div>
         <button id="hbView" class="hubView hidden" title="イラストとSDキャラを切り替え"></button>
         <button id="hbPol" class="hubPol" title="探索中に得る祝福の方針"></button>
+        <div id="hbGoal" class="hubGoal"></div>
         <div class="hubPlate"><div class="hcEl" id="hbEl"></div><div class="hcNm" id="hbCName"></div><div class="hcSt" id="hbStar"></div></div>
       </div>
       <div class="hubLeft">
@@ -85,12 +86,28 @@
   // 何度もつつくと「＞＜」の目になって、しばらくすると元に戻る
   const DIZZY_LINES = ['うぅ…目が回る〜', 'つ、つつかないで〜！', 'もう〜っ！', 'くすぐったいってば〜！'];
   let bubTO = 0, lastLine = -1, taps = [], dizzyT = 0;
+  // 次の目標：まだ倒していない次の階層の主
+  function nextGoal() {
+    const S = G.S, mf = S.maxFloor || 0, nf = (Math.floor(mf / 5) + 1) * 5, K = G.bossKindAt && G.bossKindAt(nf);
+    return K ? `B${nf}F の <b>${K.n}</b> を倒す` : `B${nf}F に到達`;
+  }
+  // その時の状況に合わせたセリフ（次の目標・ガチャ・前回の結果）
+  function situLine() {
+    const S = G.S, L = [], lr = S.lastRun, nf = (Math.floor((S.maxFloor || 0) / 5) + 1) * 5, K = G.bossKindAt && G.bossKindAt(nf);
+    if (K) L.push(`次はB${nf}Fの${K.n}だね。${K.d.split('。')[0]}らしいよ`);
+    if (S.coins >= G.GACHA.ten) L.push(`コインが${S.coins.toLocaleString()}枚もあるよ！ 10連ガチャ引いちゃう？`);
+    else if (S.coins >= G.GACHA.single) L.push('ガチャを引けるだけのコインがあるよ！');
+    if (lr && lr.bossHp != null) L.push(`${lr.bossN}、あと${lr.bossHp}%だったのに…次こそ！`);
+    else if (lr && lr.floor) L.push(`前回はB${lr.floor}Fまで行けたね。今日はもっと深く行こう！`);
+    return L.length ? L[Math.floor(Math.random() * L.length)] : null;
+  }
   function talk() {
     const now = performance.now(); taps = taps.filter(t => now - t < 1600); taps.push(now);
     const dz = taps.length >= 4 || dizzyT > 0;
     if (dz) { dizzyT = 2.6; poke(.5, .3); }
     const c = G.S.cur, L = dz ? DIZZY_LINES : (G.LINES[c] || G.LINES.hero); let i = Math.floor(Math.random() * L.length); if (i === lastLine) i = (i + 1) % L.length; lastLine = i;
-    const b = $('hbBubble'); b.textContent = L[i]; b.classList.remove('show'); void b.offsetWidth; b.classList.add('show');
+    const sl = !dz && Math.random() < .4 ? situLine() : null; // ときどき状況に合わせたセリフ
+    const b = $('hbBubble'); b.textContent = sl || L[i]; b.classList.remove('show'); void b.offsetWidth; b.classList.add('show');
     const ch = $('hbChar'); ch.classList.remove('hop'); void ch.offsetWidth; ch.classList.add('hop');
     G.sfx('click'); clearTimeout(bubTO); bubTO = setTimeout(() => b.classList.remove('show'), 2600);
   }
@@ -118,6 +135,7 @@
       $('hbView').classList.toggle('hidden', !C.gacha); $('hbView').textContent = art ? 'SD' : 'イラスト';
     }
     $('hbPol').textContent = '✦ 祝福：' + (G.BLESS_POL ? G.BLESS_POL[S.settings.blessPol || 'auto'] : 'おまかせ');
+    { const g = nextGoal(), d = new Date(), day = d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate(); $('hbGoal').innerHTML = (g ? '🎯 次の目標：' + g : '') + (S.firstRun !== day ? '<br>☀ 本日の初出撃はコイン1.5倍' : ''); }
     $('hbPity').innerHTML = 'UR確定まで あと<b>' + (G.GACHA.pity - S.pity) + '</b>回<span class="bnPrice">　単発 ' + G.GACHA.single + '枚 / 10連 ' + G.GACHA.ten.toLocaleString() + '枚</span>';
     // ログインボーナス
     const lg = $('hbLogin');

@@ -737,3 +737,6 @@ body.touch #title .tNote{display:none}
 .gSure{display:block;font-size:10px;letter-spacing:0;color:#ffe36a;line-height:1.1}
 .upTag{display:block;font-size:10px;color:#7fff8a;line-height:1.2}.upTag.eq{color:#ffe36a}.upTag.sure{color:#ffb0f0}
 .rsBossHp{display:flex;align-items:center;gap:6px;font-size:12px;margin-bottom:4px;flex-wrap:wrap}.rsBossHp i{flex:1;min-width:80px;height:8px;background:#2a1010;border:1px solid #000;position:relative}.rsBossHp i b{position:absolute;left:0;top:0;bottom:0;background:linear-gradient(#ff6a4a,#b0201a)}.rsBossHp em{font-style:normal;color:#ffb4a0}.rsBossHp strong{color:#ffe36a;font-weight:normal;animation:tBlink 1s steps(2) infinite}
+.hubGoal{position:absolute;left:2%;top:calc(2% + 34px);z-index:2;padding:4px 10px;border-radius:14px;font-size:12px;background:rgba(10,8,18,.8);border:1px solid rgba(255,216,77,.6);color:#ffe9a0;max-width:70%}.hubGoal:empty{display:none}.hubGoal b{color:#ffb06a;font-weight:normal}
+.rsNb{display:inline-block;margin-bottom:2px;padding:1px 8px;border-radius:10px;font-size:12px;background:rgba(127,255,138,.15);border:1px solid rgba(127,255,138,.5);color:#bfffc6}
+.toBoss{font-size:10px;color:#ffb48a;margin-right:6px;letter-spacing:0}.toBoss.boss{color:#ff6a4a}

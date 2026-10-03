@@ -116,7 +116,7 @@
   let wasComplete = true;
   function floorClear() {
     const W = G.W; if (!W || W.home || G.S.mode !== 'dungeon') { wasComplete = true; return; }
-    if (W.complete && !wasComplete) ui.callout({ text: 'CLEAR!', sub: '階段へ向かいます', tone: 'gold', prio: 1, dur: 1.1, size: .7 });
+    if (W.complete && !wasComplete) { ui.callout({ text: 'CLEAR!', sub: '階段へ向かいます', tone: 'gold', prio: 1, dur: 1.1, size: .7 }); G.say && G.say('clear'); }
     wasComplete = !!W.complete;
   }
 

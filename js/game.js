@@ -384,7 +384,7 @@
         } else if (r.kind === 'horde' && sp && !sp.used) {
           sp.used = true;
           let n = 0; for (const e of W.enemies) if (e.horde && !e.dead) { e.awake = true; e.cd = .3 + R() * .9; e.hopT = .3 + R() * .3; n++; }
-          if (n) { G.ui.banner('大群の間', 'すべて倒すとコインのボーナス'); G.sfx('alarm'); G.shake(3); W.hordeN = n; }
+          if (n) { G.ui.banner('大群の間', 'すべて倒すとコインのボーナス'); G.sfx('alarm'); G.shake(3); W.hordeN = n; G.say('horde'); }
         } else if (r.kind === 'vault') { G.ui.toast('宝物庫だ！ 宝箱が並んでいる'); G.sfx('chest'); }
         else if (r.kind === 'guard') {
           G.ui.banner('守護者の間', '倒すと祝福を2つ得られる'); G.sfx('alarm'); G.shake(2);
@@ -537,6 +537,7 @@
         S.run = { seed: (R() * 4294967296) >>> 0, floor: f0, start: f0, bless: {}, awk: [], rs: { kills: 0, items: 0, best: 0, t: 0, floorT: 0 } };
         H.hp = H.st.maxHp; H.cds = {}; H.shield = 0; H.ult = 0; H.cm = 0; H.cmFull = false; // 出撃開始時は必殺技ゲージ0
         H.supId = G.supportId(); H.supT = 6; // 支援に来てくれる控えの仲間
+        { const d = new Date(), day = d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate(); if (S.firstRun !== day) { S.firstRun = day; S.run.daily = true; setTimeout(() => G.ui.callout({ text: '本日の初出撃!', sub: 'この探索はコイン1.5倍', tone: 'gold', prio: 3, dur: 1.5, size: .9, flash: .25 }), 2600); } } // その日はじめての出撃はコイン1.5倍
         G.enterFloor(f0);
       }
       G.ui.onMode();
@@ -644,7 +645,7 @@
       G.recalc();
       H.hp = Math.min(H.st.maxHp, H.hp + H.st.maxHp * .3);
       G.fxAdd({ k: 'lvup', x: H.x, y: H.y, dur: 1.1 });
-      H.cheerT = .8; // 剣を掲げて喜ぶ
+      H.cheerT = .8; G.say('lvup'); // 剣を掲げて喜ぶ
       G.ui.callout({ text: 'LEVEL UP!', sub: 'Lv ' + S.level + '　総合力 ' + G.fmtBig(G.powerOf(H.st)), tone: 'gold', prio: 3, dur: 1.6, size: 1.1, flash: .45, flashCol: '#fff4c0' });
       G.slowmo(.25, .35); G.shake(3);
       G.light(H.x, H.y, 120, .8, '#fff0b0');
@@ -700,6 +701,7 @@
       if (H.shield <= 0 && G.bless) G.bless.onShieldBreak(); // 祝福「守護の反撃」
       if (dmg <= 0) { G.sfx('shield'); return; }
     }
+    if (H.hp >= H.st.maxHp * .3 && H.hp - dmg < H.st.maxHp * .3 && H.hp - dmg > 0) G.say('low');
     H.hp -= dmg; H.flash = .12; H.hurtT = .3; H.calmT = 0;
     noteTaken(dmg + Math.min(0, H.hp), src);
     if (S.cur === 'samurai' && !H.cmFull) H.cm = (H.cm || 0) * .4; // 集中：攻撃を受けると下がる
@@ -743,7 +745,7 @@
       }
       if (n >= 3) danger = true; else W.mhActive = null;
     }
-    if (bossOn && !W.roared) { W.roared = true; G.sfx('roar'); G.shake(4); G.ui.banner('階層の主 出現', W.boss.name.replace('階層の主 ', '')); G.light(W.boss.x, W.boss.y, 120, 1, '#ff6040'); }
+    if (bossOn && !W.roared) { W.roared = true; G.sfx('roar'); G.shake(4); G.ui.banner('階層の主 出現', W.boss.name.replace('階層の主 ', '')); G.say('boss'); G.light(W.boss.x, W.boss.y, 120, 1, '#ff6040'); }
     if (danger) G.music.play('boss');
     else G.music.play('dungeon', Math.floor((W.f - 1) / 5));
   }
@@ -758,8 +760,47 @@
   function recRun(lr) {
     if (!lr) return;
     const c = G.recCh(lr.ch || S.cur);
+    const nb = []; // 自己ベストを更新した項目（結果画面に表示）
+    if (c.runs) { if ((lr.best || 0) > c.combo) nb.push('最大コンボ'); if ((lr.kills || 0) > (c.bestKills || 0)) nb.push('撃破数'); if ((lr.coins || 0) > (c.bestCoins || 0)) nb.push('獲得コイン'); }
+    lr.nb = nb;
     c.runs++; c.best = Math.max(c.best, lr.floor || 0); c.combo = Math.max(c.combo, lr.best || 0); c.burst = Math.max(c.burst, lr.burst || 0); c.time += lr.t || 0;
+    c.bestKills = Math.max(c.bestKills || 0, lr.kills || 0); c.bestCoins = Math.max(c.bestCoins || 0, lr.coins || 0);
   }
+  // ------------------------------------------------------------ 実績（達成すると自動でコインがもらえる）
+  const bossSum = () => { const b = G.rec().boss; let n = 0; for (const k in b) n += b[k]; return n; };
+  const maxCombo = () => { const c = G.rec().ch; let m = 0; for (const k in c) m = Math.max(m, c[k].combo || 0); return Math.max(m, (G.runStats().best) || 0); };
+  const owned = () => Object.keys(G.CHARS).filter(id => id === 'hero' || (S.chars[id] && S.chars[id].own)).length;
+  const zukan = () => { const r = G.rec(); return Object.keys(G.ENEMY).filter(t => r.en[t]).length + G.BOSS_KIND.filter(K => r.boss[K.id]).length; };
+  G.ACH = [
+    ...[[5, 500], [10, 1000], [20, 2500], [30, 4000], [50, 8000], [100, 20000]].map(([f, r]) => ({ id: 'f' + f, n: 'B' + f + 'F に到達', v: () => S.maxFloor, need: f, r })),
+    ...[[500, 500], [3000, 1500], [10000, 3000], [50000, 8000]].map(([k, r]) => ({ id: 'k' + k, n: '敵を ' + k.toLocaleString() + ' 体倒す', v: () => S.stats.kills, need: k, r })),
+    ...[[1, 800], [10, 2500], [30, 6000]].map(([k, r]) => ({ id: 'b' + k, n: '階層の主を ' + k + ' 体倒す', v: bossSum, need: k, r })),
+    ...[[100, 1000], [300, 3000], [500, 6000]].map(([k, r]) => ({ id: 'c' + k, n: k + ' コンボを達成', v: maxCombo, need: k, r })),
+    ...[[2, 2000], [4, 6000]].map(([k, r]) => ({ id: 'o' + k, n: '仲間を ' + k + ' 人にする', v: owned, need: k, r })),
+    ...[[10, 500], [50, 2000], [200, 6000]].map(([k, r]) => ({ id: 'r' + k, n: k + ' 回出撃する', v: () => S.stats.runs, need: k, r })),
+    { id: 'zk', n: 'モンスター図鑑を完成させる', v: zukan, need: Object.keys(G.ENEMY).length + G.BOSS_KIND.length, r: 10000 },
+  ];
+  G.achCheck = function () {
+    sync(); if (!S) return;
+    S.ach = S.ach || {};
+    for (const a of G.ACH) {
+      if (S.ach[a.id] || a.v() < a.need) continue;
+      S.ach[a.id] = 1; S.coins += a.r;
+      G.ui.callout({ text: '実績達成!', sub: a.n + '　コイン +' + a.r.toLocaleString() + '枚', tone: 'gold', prio: 4, dur: 1.6, size: .9, flash: .3 });
+      G.sfx('lvup'); return; // 一度に1つずつ（続きは次の確認で）
+    }
+  };
+  // 勇者の吹き出し（同じ種類は続けて言わない・一定時間に1つまで）
+  const SAY = {
+    boss: ['出たな…！', '負けないぞ！', 'ここが勝負だ！'], low: ['まだ倒れない…！', 'くっ…！', 'もう少し…！'],
+    gold: ['待てー！', '逃がさない！', 'お宝の匂い！'], lvup: ['強くなった！', 'まだまだ行ける！', 'よしっ！'],
+    clear: ['この階は制覇！', '次の階へ！'], horde: ['うわっ、いっぱい！', 'まとめて相手だ！'],
+  };
+  G.say = function (k) {
+    sync(); if (!W || W.home || H.dead || (W.time - (W.sayT || -9)) < 6) return;
+    const L = SAY[k]; if (!L) return; W.sayT = W.time;
+    G.fxAdd({ k: 'say', text: L[Math.floor(R() * L.length)], x: H.x, y: H.y, dur: 2 });
+  };
   G.FLOOR_MOD = {
     gold: { n: '黄金の階', d: 'コイン2倍・敵が少し硬い', col: '#ffd84d' },
     swarm: { n: '群れの階', d: '敵が多い・経験値1.3倍', col: '#ff9a6a' },
@@ -1137,6 +1178,7 @@
   function gainCoins(n, x, y, big) {
     if (G.bless && S.run) n *= G.bless.coinMul(); // 祝福「黄金の加護」
     if (W && W.mod === 'gold') n *= 2; else if (W && W.mod === 'calm') n *= 1.4; // 異変：黄金の階・静寂の階
+    if (S.run && S.run.daily) n *= 1.5; // 本日の初出撃ボーナス
     n = Math.max(1, Math.round(n));
     S.coins += n; const rs = G.runStats(); rs.coins = (rs.coins || 0) + n;
     G.popText(x, y - 26, '+' + n + '枚', '#ffd84d', big ? 10 : 7);
@@ -2121,7 +2163,7 @@
       const df = e.d;
       if (e.regen && e.hp < e.maxHp) { e.hp = Math.min(e.maxHp, e.hp + e.maxHp * e.regen * dt); if (R() < dt * 4) G.part(e.x + (R() - .5) * 10, e.y - 6 - R() * 12, 0, -14, .5, '#7fff8a', 1, 0, 1); }
       if (e.treasure) { // 金の小鬼：勇者から逃げる（1.3秒走って1.7秒休む）。しばらくすると逃げ去る
-        if (!e.seenMsg && e.seenT > .5) { e.seenMsg = true; G.ui.toast('金の小鬼だ！ 逃がすな！'); G.sfx('chest'); }
+        if (!e.seenMsg && e.seenT > .5) { e.seenMsg = true; G.ui.toast('金の小鬼だ！ 逃がすな！'); G.sfx('chest'); G.say('gold'); }
         if (e.seenMsg) e.fleeT -= dt;
         if (e.fleeT <= 0) { e.dead = true; e.deadT = .5; G.burst(e.x, e.y - 8, 20, ['#ffd84d', '#ffffff'], 80, .5, 1, -60); G.ui.toast('金の小鬼に逃げられた…'); continue; }
         if (R() < dt * 6) G.part(e.x + (R() - .5) * 10, e.y - 8 - R() * 10, 0, -10, .5, '#ffd84d', 1, 0, 1);
@@ -2354,13 +2396,14 @@
       if (!tr.fired && tr.t >= tr.dur / 2) { tr.fired = true; tr.fn(); sync(); }
       if (tr.t >= tr.dur) G.trans = null;
     }
-    if (W.home) { updHome(dt); updFx(dt); updCam(dt); return; }
+    if (W.home) { updHome(dt); updFx(dt); updCam(dt); G.achT = (G.achT || 0) - dt; if (G.achT <= 0 && !G.uxHold) { G.achT = 2; G.achCheck(); } return; }
     if (G.ui && G.ui.titleOn) return; // タイトル表示中はダンジョンを進めない
     const rsx = G.runStats(); rsx.t += dt; rsx.floorT += dt;
     updMusic(dt);
     const cb = G.combo; cb.t -= dt; cb.burstT -= dt; cb.pop = Math.max(0, cb.pop - dt * 5);
     if (cb.t <= 0 && cb.n) cb.n = 0;
     updHero(dt); mechTick(dt); supportTick(dt);
+    G.achT = (G.achT || 0) - dt; if (G.achT <= 0) { G.achT = 2; G.achCheck(); } // 実績の確認（2秒ごと）
     if (G.bless) G.bless.tick(dt); // 祝福（時間で起こる効果・遅れて起こる効果）
     updEnemies(dt);
     updProjs(dt);

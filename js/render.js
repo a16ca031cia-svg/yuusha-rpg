@@ -526,6 +526,19 @@
           ctx.globalAlpha = 1;
           break;
         }
+        case 'say': {
+          // 勇者の吹き出し（頭の上についていく）
+          const a = p < .08 ? p / .08 : p > .85 ? (1 - p) / .15 : 1, sc = p < .08 ? .7 + p / .08 * .3 : 1;
+          ctx.font = '7px DotGothic16, monospace'; ctx.textAlign = 'center';
+          const tw = ctx.measureText(f.text).width, bw = tw + 8, bh = 11, bx = H.x, by = H.y - 46;
+          ctx.save(); ctx.translate(bx, by); ctx.scale(sc, sc); ctx.globalAlpha = a;
+          ctx.fillStyle = 'rgba(20,12,8,.9)'; ctx.fillRect(-bw / 2 - 1, -bh - 1, bw + 2, bh + 2);
+          ctx.fillStyle = '#fffaf0'; ctx.fillRect(-bw / 2, -bh, bw, bh);
+          ctx.beginPath(); ctx.moveTo(-3, 0); ctx.lineTo(3, 0); ctx.lineTo(0, 4); ctx.fill();
+          ctx.fillStyle = '#2a1a10'; ctx.fillText(f.text, 0, -3);
+          ctx.restore(); ctx.globalAlpha = 1;
+          break;
+        }
         case 'text': {
           const alpha = p > .7 ? (1 - p) / .3 : 1, yy = f.y - G.easeOut(Math.min(1, p * 2)) * 12;
           ctx.globalAlpha = alpha;
