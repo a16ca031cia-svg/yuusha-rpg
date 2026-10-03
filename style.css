@@ -740,3 +740,10 @@ body.touch #title .tNote{display:none}
 .hubGoal{position:absolute;left:2%;top:calc(2% + 34px);z-index:2;padding:4px 10px;border-radius:14px;font-size:12px;background:rgba(10,8,18,.8);border:1px solid rgba(255,216,77,.6);color:#ffe9a0;max-width:70%}.hubGoal:empty{display:none}.hubGoal b{color:#ffb06a;font-weight:normal}
 .rsNb{display:inline-block;margin-bottom:2px;padding:1px 8px;border-radius:10px;font-size:12px;background:rgba(127,255,138,.15);border:1px solid rgba(127,255,138,.5);color:#bfffc6}
 .toBoss{font-size:10px;color:#ffb48a;margin-right:6px;letter-spacing:0}.toBoss.boss{color:#ff6a4a}
+/* 吹き出しは目標・祝福の札より手前に。スマホではキャラの枠の中に収まるよう、札の下に左右いっぱいで出す */
+.hubBubble{z-index:3}
+@media (max-width:760px){
+  .hubGoal{font-size:11px;padding:3px 8px;max-width:96%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.45}
+  .hubBubble{top:96px;left:4%;right:4%;max-width:none;font-size:14px;padding:8px 12px;transform:scale(.6);transform-origin:30% 100%}
+  .hubBubble.show{transform:scale(1)}
+}
