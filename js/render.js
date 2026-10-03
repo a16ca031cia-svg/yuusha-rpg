@@ -553,7 +553,7 @@
   }
   function drawNums(W) {
     for (const n of W.nums) {
-      const cols = { n: '#ffffff', crit: '#ffe04a', chain: '#9fdcff', boom: '#ffa050', burn: '#ff8a3a', poison: '#a8f060', follow: '#dfe6ff', skill: '#fff0b0', hurt: '#ff5a4a', heal: '#7fff8a' };
+      const cols = { n: '#ffffff', crit: '#ffe04a', chain: '#9fdcff', boom: '#ffa050', burn: '#ff8a3a', poison: '#a8f060', follow: '#dfe6ff', skill: '#fff0b0', mech: '#ffb8f0', hurt: '#ff5a4a', heal: '#7fff8a' };
       const dg = G.digits(cols[n.k] || '#ffffff');
       const str = G.fmt(n.v);
       const big = n.k === 'crit' ? 2 : 1;

@@ -131,8 +131,9 @@
   }
 
   // ---------------------------------------------------------- 結果画面の「何が強かったか」
-  const SRC_N = { atk: '通常攻撃', skill: '技', ult: '必殺技', chain: '連鎖雷', follow: '追撃斬', boom: '撃破爆発', burn: '燃焼', poison: '毒', uq_ret: '迅雷の剣', uq_mark: '氷印の宝玉' };
+  const SRC_N = { atk: '通常攻撃', skill: '技', ult: '必殺技', chain: '連鎖雷', follow: '追撃斬', boom: '撃破爆発', burn: '燃焼', poison: '毒', uq_ret: '迅雷の剣', uq_mark: '氷印の宝玉', mech: 'キャラ固有の一撃' };
   function srcName(k) {
+    if (k === 'mech' && G.CHAR_MECH && G.CHAR_MECH[G.S.cur]) return G.CHAR_MECH[G.S.cur].n + '（固有）';
     if (k.startsWith('sk_')) { const id = k.slice(3); try { return G.skillEvo(id).names[G.skillStageOf(G.skillLvAt(id, G.S.level))] || G.SKILLS[id].n; } catch (e) { return (G.SKILLS[id] || {}).n || '技'; } }
     return SRC_N[k] || (G.bless && G.bless.src[k]) || k;
   }
@@ -260,6 +261,12 @@
     $('lowHp').classList.toggle('on', !!low);
     // 必殺技ゲージが満タン
     const ub = $('ultBar'); if (ub && H) ub.classList.toggle('full', (H.ult || 0) >= G.ULT.max);
+    // キャラ固有のゲージ（連撃・帯電・冷気・集中）
+    const M = G.CHAR_MECH && G.CHAR_MECH[S.cur], cb = $('cmBar');
+    if (cb && H && M) {
+      if (cb.dataset.c !== S.cur) { cb.dataset.c = S.cur; cb.style.setProperty('--cm', M.col); $('cmTxt').textContent = M.n; cb.title = M.n + '：' + M.d; }
+      $('cmFill').style.width = ((H.cmFull ? 1 : H.cm || 0) * 100) + '%'; cb.classList.toggle('full', !!H.cmFull);
+    }
     // 自動出撃までの残り時間（出撃ボタンのゲージ）
     const go = $('hbGo');
     if (go) go.classList.toggle('first', home && !S.stats.runs && !cur); // まだ一度も出撃していない人には出撃ボタンを指さす

@@ -508,7 +508,7 @@
         S.stats.runs++;
         if (G.bless) G.bless.reset();
         S.run = { seed: (R() * 4294967296) >>> 0, floor: f0, start: f0, bless: {}, awk: [], rs: { kills: 0, items: 0, best: 0, t: 0, floorT: 0 } };
-        H.hp = H.st.maxHp; H.cds = {}; H.shield = 0; H.ult = 0; // 出撃開始時は必殺技ゲージ0
+        H.hp = H.st.maxHp; H.cds = {}; H.shield = 0; H.ult = 0; H.cm = 0; H.cmFull = false; // 出撃開始時は必殺技ゲージ0
         G.enterFloor(f0);
       }
       G.ui.onMode();
@@ -672,6 +672,7 @@
     }
     H.hp -= dmg; H.flash = .12; H.hurtT = .3; H.calmT = 0;
     noteTaken(dmg + Math.min(0, H.hp), src);
+    if (S.cur === 'samurai' && !H.cmFull) H.cm = (H.cm || 0) * .4; // 集中：攻撃を受けると下がる
     G.num(H.x, H.y - 36, dmg, 'hurt', H);
     G.sfx('hurt');
     if (sx != null) { const a = Math.atan2(H.y - sy, H.x - sx); moveBody(H, Math.cos(a) * 2, Math.sin(a) * 2); }
@@ -720,6 +721,52 @@
     if (e.awake) return;
     e.awake = true;
     for (const o of W.enemies) if (!o.awake && !o.dead && G.dist(o.x, o.y, e.x, e.y) < 90) { o.awake = true; o.cd = .3 + R() * .8; }
+  }
+  // ------------------------------------------------------------ キャラ固有の仕組み
+  // 攻撃を当てる（集中だけは時間）とゲージ H.cm がたまり、満タンになると次に当てた攻撃でキャラごとの一撃が出る
+  G.CHAR_MECH = {
+    hero: { n: '連撃', d: '攻撃を当てるたびにたまり、満タンで次の攻撃のあとに大きな追加の斬撃', col: '#ffe9a0', per: 1 / 5 },
+    thunder: { n: '帯電', d: '攻撃を当てるたびに帯電し、満タンで次の一撃から強い連鎖雷', col: '#fff27a', per: 1 / 6 },
+    ice: { n: '冷気', d: '氷の弾で冷気がたまり、満タンで次の一撃で周りの敵をまとめて凍らせる', col: '#bfeaff', per: 1 / 6 },
+    samurai: { n: '集中', d: 'ダメージを受けずにいると高まり（受けると下がる）、満タンで必ず会心の居合', col: '#ff8a8a', per: 0 },
+  };
+  function mechTick(dt) {
+    H.clk = (H.clk || 0) + dt; // 階が変わっても戻らない時計（W.time は階ごとに0から）
+    if (S.cur === 'samurai' && !H.cmFull && H.target) { H.cm = Math.min(1, (H.cm || 0) + dt / 3.2); if (H.cm >= 1) mechReady(); }
+    if (H.cmFull && R() < dt * 10) { const M = G.CHAR_MECH[S.cur]; if (M) G.part(H.x + (R() - .5) * 14, H.y - 4 - R() * 20, 0, -18, .45, M.col, 1, 0, 1); }
+  }
+  function mechReady() {
+    const M = G.CHAR_MECH[S.cur]; if (!M) return;
+    H.cm = 1; H.cmFull = true;
+    G.popText(H.x, H.y - 46, M.n + ' MAX', M.col, 9); G.sfx('learn');
+    G.fxAdd({ k: 'ring', x: H.x, y: H.y - 8, r: 22, col: M.col, dur: .35 });
+  }
+  // 通常攻撃・技が当たった時（1回の振りにつき1回だけ数える）
+  function mechHit(e) {
+    const M = G.CHAR_MECH[S.cur]; if (!M || (H.clk || 0) - (H.cmT || -9) < .12) return;
+    H.cmT = H.clk || 0;
+    if (H.cmFull) { if (S.cur !== 'samurai') mechFire(e); return; }
+    if (M.per) { H.cm = Math.min(1, (H.cm || 0) + M.per); if (H.cm >= 1) mechReady(); }
+  }
+  function mechFire(e) {
+    H.cmFull = false; H.cm = 0;
+    const atk = H.st.atk, ang = Math.atan2(e.y - H.y, e.x - H.x);
+    if (S.cur === 'hero') { // 連撃：大きな追加の斬撃
+      const l = localA(ang);
+      slashFx(l - 2.2, l + 2.2, H.st.reach + 14, .24, '#ffe9a0', .8);
+      coneHit(ang, H.st.reach + 12, atk * 2.2, 'mech', 1.6, 100);
+      G.popText(H.x, H.y - 40, '連撃!!', '#ffe9a0', 11); G.sfx('slash2'); G.shake(2);
+    } else if (S.cur === 'thunder') { // 帯電：その敵から強い連鎖雷
+      G.fxAdd({ k: 'pillar', x: e.x, y: e.y, r: 12, h: 70, dur: .45, col: '#fff27a' });
+      hitEnemy(e, atk * 1.8, { src: 'mech', canCrit: true, ka: ang, kb: 60 });
+      chainLightning(e, 3, 6, atk * 1.2, 'mech', 2);
+      G.popText(H.x, H.y - 40, '放電!!', '#fff27a', 11); G.sfx('zap'); G.shake(3);
+    } else if (S.cur === 'ice') { // 冷気：周りの敵をまとめて凍らせる
+      const r = 70 * H.st.area;
+      G.fxAdd({ k: 'ring', x: e.x, y: e.y, r, col: '#bfeaff', dur: .5 }); G.burst(e.x, e.y - 8, 30, ['#e8f8ff', '#9fdcff', '#ffffff'], 120, .6, 1);
+      for (const o of W.enemies) if (!o.dead && G.dist(o.x, o.y, e.x, e.y) <= r + o.r) { hitEnemy(o, atk * 1.1, { src: 'mech', canCrit: false, ka: 0, kb: 0 }); if (!o.dead) { o.frozen = Math.max(o.frozen, 2 * (o.boss ? .35 : 1)); o.atk = false; } }
+      G.popText(H.x, H.y - 40, '氷結!!', '#bfeaff', 11); G.sfx('freeze'); G.shake(2);
+    }
   }
   // ------------------------------------------------------------ 固有ボスの戦い方
   // 鎧の巨兵：鎧が残っている間はダメージが半分以下しか通らず、残りは鎧を削る。砕けると数秒すきだらけ
@@ -820,7 +867,13 @@
     // 視界の外（暗いところ）にいる敵には当たらない。見えてから倒す（すでに付いた燃焼・毒だけは続く）
     if (!seen(e) && o.src !== 'burn' && o.src !== 'poison') return 0;
     let dmg = base, crit = false;
-    if (o.canCrit !== false && R() < H.st.crit) { dmg *= H.st.critd; crit = true; }
+    const iai = (o.src === 'atk' || o.src === 'skill') && S.cur === 'samurai' && H.cmFull && (H.clk || 0) - (H.cmT || -9) >= .12; // 集中：満タンの次の一撃は必ず会心の居合
+    if (iai) {
+      dmg *= H.st.critd * 2.4; crit = true; H.cmFull = false; H.cm = 0; H.cmT = H.clk || 0; o = Object.assign({}, o, { src: 'mech' });
+      G.fxAdd({ k: 'eslash', x: e.x, y: e.y - 10, ang: Math.atan2(e.y - H.y, e.x - H.x), r: 46, dur: .25 });
+      G.popText(H.x, H.y - 40, '居合!!', '#ff8a8a', 11); G.sfx('crit'); G.shake(3); H.hitstop = Math.max(H.hitstop, .1);
+    } else if (o.canCrit !== false && R() < H.st.crit) { dmg *= H.st.critd; crit = true; }
+    if (o.src === 'atk' || o.src === 'skill') mechHit(e); // 通常攻撃・技が当たるとゲージがたまる
     if (o.src === 'skill' && H.act && H.act.strideMul) dmg *= H.act.strideMul; // 祝福「狩人の歩み」
     dmg *= (.92 + R() * .16) * (e.d.armor || 1);
     if (e.stun > 0) dmg *= 1.5; // 固有ボスのすき（鎧が砕けた・突進の後）
@@ -2175,7 +2228,7 @@
     updMusic(dt);
     const cb = G.combo; cb.t -= dt; cb.burstT -= dt; cb.pop = Math.max(0, cb.pop - dt * 5);
     if (cb.t <= 0 && cb.n) cb.n = 0;
-    updHero(dt);
+    updHero(dt); mechTick(dt);
     if (G.bless) G.bless.tick(dt); // 祝福（時間で起こる効果・遅れて起こる効果）
     updEnemies(dt);
     updProjs(dt);

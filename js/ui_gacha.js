@@ -70,6 +70,7 @@
         ${C.gacha ? `<img class="chArt" src="${ART(selC)}" alt="" style="${own ? '' : 'filter:brightness(0) opacity(.5)'}">` : ''}
         <div class="small">${esc(C.desc)}　属性：${esc(C.el)}${C.ranged ? '（遠距離攻撃）' : ''}</div>
         <div class="small">能力の倍率：HP ${pct(base.hp)}　攻撃力 ${pct(base.atk)}　防御力 ${pct(base.def)}　攻撃速度 ${pct(base.aspd)}${base.crit ? '　会心率 +' + Math.round(base.crit * 100) + '%' : ''}${base.critd ? '　会心威力 +' + Math.round(base.critd * 100) + '%' : ''}</div>
+        ${G.CHAR_MECH && G.CHAR_MECH[selC] ? `<div class="h" style="margin-top:6px">固有の力：<span style="color:${G.CHAR_MECH[selC].col}">${esc(G.CHAR_MECH[selC].n)}</span></div><div class="small">${esc(G.CHAR_MECH[selC].d)}（ゲージは必殺技ゲージの下）</div>` : ''}
         <div class="h" style="margin-top:6px">必殺技：${esc(C.ult.n)}</div><div class="small">${esc(C.ult.d)}<br>攻撃の命中と敵の撃破でゲージがたまり、満タンで近くに敵がいれば自動で発動します。</div>
         <div class="h" style="margin-top:6px">技（レベルで習得）</div>${skills}
         ${C.gacha ? `<div class="h" style="margin-top:6px">限界突破（同じキャラを引くと★が上がる）　現在 ${own ? stars(st) : '未所持'}</div>${starRows.map(([n, t]) => `<div class="small" style="color:${own && st >= n ? '#7fe07a' : ''}">★${n}：${esc(t)}</div>`).join('')}<div class="small">★5のあとに引いた分は、育成素材「英雄の魂」${G.SOUL_PER_DUP}個に変わります。</div>` : '<div class="small" style="margin-top:6px">初期主人公は★1のまま育てます（限界突破はありません）。</div>'}

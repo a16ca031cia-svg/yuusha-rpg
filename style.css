@@ -716,3 +716,9 @@ body.touch #title .tNote{display:none}
 #bossBar .bar.arm{height:5px;margin-top:2px}
 #bossArmFill{height:100%;background:linear-gradient(#cfe6ff,#5a8ac8);transition:width .15s}
 #bossWarn .bwSub b{color:#fff0a0}#bossWarn .bwD{font-size:.8em;opacity:.85}
+/* キャラ固有のゲージ（必殺技ゲージの下・キャラの色） */
+.cmbar{height:9px;margin-top:3px}
+#cmFill{background:var(--cm,#fff);opacity:.85;transition:width .12s}
+#cmTxt{position:absolute;inset:0;font-size:8px;line-height:7px;text-align:center;color:#fff;text-shadow:1px 1px 0 #000;letter-spacing:2px}
+.cmbar.full{box-shadow:0 0 8px var(--cm,#fff)}
+.cmbar.full #cmFill{opacity:1;animation:ultGlow .5s ease-in-out infinite alternate}
