@@ -521,6 +521,7 @@
       const rs = S.run && S.run.rs;
       S.prevRun = S.lastRun ? { floor: S.lastRun.floor, kills: S.lastRun.kills, start: S.lastRun.start || 1, ch: S.lastRun.ch } : null; // 結果画面の「前回との比較」用
       S.lastRun = rs ? { floor: W.f, kills: rs.kills, items: rs.items, best: rs.best, t: Math.round(rs.t), coins: rs.coins || 0, start: (S.run && S.run.start) || 1, dmg: rs.dmg || {}, taken: rs.taken || {}, takenK: rs.takenK || {}, lastHit: rs.lastHit || "", mob: rs.mob || 0, burst: rs.maxBurst || 0, bless: (S.run && S.run.bless) || {}, awk: (S.run && S.run.awk) || [], ch: S.cur } : null;
+      recRun(S.lastRun); // キャラごとの記録
       // 中継地点の調整：始めた階から1階も進めずに力尽きたら次は1段浅く、3階以上進めたら1段深く（最深の中継地点まで）
       if (S.run && W.f) { const prog = W.f - (S.run.start || 1); if (prog <= 0) S.cpBack = (S.cpBack || 0) + 1; else if (prog >= 3) S.cpBack = Math.max(0, (S.cpBack || 0) - 1); }
       S.mode = 'home'; S.run = null; S.homeMsg = msg || '';
@@ -540,6 +541,7 @@
       const rs = run.rs;
       S.prevRun = S.lastRun ? { floor: S.lastRun.floor, kills: S.lastRun.kills, start: S.lastRun.start || 1, ch: S.lastRun.ch } : null; // 結果画面の「前回との比較」用
       S.lastRun = rs ? { floor: f, kills: rs.kills, items: rs.items, best: rs.best, t: Math.round(rs.t), coins: rs.coins || 0, start: run.start || 1, dmg: rs.dmg || {}, taken: rs.taken || {}, takenK: rs.takenK || {}, lastHit: rs.lastHit || "", mob: rs.mob || 0, burst: rs.maxBurst || 0, bless: run.bless || {}, awk: run.awk || [], ch: S.cur } : null;
+      recRun(S.lastRun); // キャラごとの記録
       S.mode = 'home'; S.homeMsg = 'B' + f + 'F から帰還した（続きから再出撃できます）';
       G.resumeRun = run; G.manualStart = true; // 帰ってきた時は自動で出撃しない
       G.setupHome();
@@ -721,6 +723,14 @@
     if (e.awake) return;
     e.awake = true;
     for (const o of W.enemies) if (!o.awake && !o.dead && G.dist(o.x, o.y, e.x, e.y) < 90) { o.awake = true; o.cd = .3 + R() * .8; }
+  }
+  // ------------------------------------------------------------ 記録（キャラごと）・図鑑（倒した敵）
+  G.rec = function () { const r = S.rec || (S.rec = { ch: {}, en: {}, boss: {} }); return r; };
+  G.recCh = id => { const r = G.rec(); return r.ch[id] || (r.ch[id] = { runs: 0, best: 0, kills: 0, bossKills: 0, combo: 0, burst: 0, time: 0 }); };
+  function recRun(lr) {
+    if (!lr) return;
+    const c = G.recCh(lr.ch || S.cur);
+    c.runs++; c.best = Math.max(c.best, lr.floor || 0); c.combo = Math.max(c.combo, lr.best || 0); c.burst = Math.max(c.burst, lr.burst || 0); c.time += lr.t || 0;
   }
   // ------------------------------------------------------------ キャラ固有の仕組み
   // 攻撃を当てる（集中だけは時間）とゲージ H.cm がたまり、満タンになると次に当てた攻撃でキャラごとの一撃が出る
@@ -969,6 +979,7 @@
     if (e.dead) return;
     e.dead = true; e.deadT = 0; e.frozen = 0;
     S.stats.kills++; G.dailyAdd('kills', 1);
+    { const rc = G.rec(), c = G.recCh(S.cur); c.kills++; if (!e.minion) rc.en[e.type] = (rc.en[e.type] || 0) + 1; if (e.boss) { c.bossKills++; const bk = e.bk || 'old'; rc.boss[bk] = (rc.boss[bk] || 0) + 1; } }
     if (e.horde && W.hordeN && !W.enemies.some(o => o.horde && !o.dead)) { // 大群の間を全滅させた
       W.hordeN = 0;
       gainCoins(G.COIN.chest(W.f) * 2.5, H.x, H.y - 10, true);

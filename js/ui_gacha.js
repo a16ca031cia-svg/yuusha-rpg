@@ -17,6 +17,29 @@
     const u = s.toDataURL(); if (cv.width > 2) pixCache[c] = u; return u;
   }
   const stars = n => '★'.repeat(n) + '<span class="dimst">' + '★'.repeat(5 - n) + '</span>';
+  // 記録（キャラごと）と図鑑（倒した敵・階層の主）
+  function recHtml(c) {
+    const r = G.recCh ? G.recCh(c) : null; if (!r) return '';
+    const t = Math.round(r.time || 0), hm = Math.floor(t / 3600) + '時間' + Math.floor(t % 3600 / 60) + '分';
+    const cell = (k, v) => `<div><span>${k}</span><b>${v}</b></div>`;
+    return `<div class="h" style="margin-top:6px">この仲間の記録</div><div class="recGrid">${cell('最深', r.best ? 'B' + r.best + 'F' : '―')}${cell('出撃', r.runs + '回')}${cell('撃破', r.kills.toLocaleString() + '体')}${cell('階層の主', r.bossKills + '体')}${cell('最大コンボ', r.combo)}${cell('探索時間', hm)}</div>`;
+  }
+  const enCache = {};
+  function enURL(type, big) {
+    const k = type + (big ? 'B' : ''); if (enCache[k]) return enCache[k];
+    const sp = G.enemySpr(type, 0, big), fr = sp && sp.frames && sp.frames[(sp.seq && sp.seq.idle && sp.seq.idle[0]) || 0], cv = fr && fr.n;
+    if (!cv || !cv.width) return '';
+    const s = G.canvas(48, 48), x = s.getContext('2d'), sc = Math.min(44 / cv.width, 44 / cv.height); x.imageSmoothingEnabled = false;
+    x.drawImage(cv, (48 - cv.width * sc) / 2, 46 - cv.height * sc, cv.width * sc, cv.height * sc);
+    return enCache[k] = s.toDataURL();
+  }
+  function zukanHtml() {
+    const rc = G.rec ? G.rec() : { en: {}, boss: {} };
+    const en = Object.keys(G.ENEMY).map(t => { const n = rc.en[t] || 0; return `<div class="zk ${n ? '' : 'unk'}"><img src="${enURL(t)}" alt=""><b>${n ? esc(G.ENEMY[t].n) : '？？？'}</b><span>${n ? n.toLocaleString() + '体' : '未発見'}</span></div>`; }).join('');
+    const bs = (G.BOSS_KIND || []).map(K => { const n = rc.boss[K.id] || 0; return `<div class="zk boss ${n ? '' : 'unk'}" title="${n ? esc(K.d) : ''}"><img src="${enURL(K.type, true)}" alt=""><b>${n ? esc(K.n) : '？？？'}</b><span>${n ? '討伐 ' + n + '回' : '未討伐'}</span></div>`; }).join('');
+    const got = Object.keys(G.ENEMY).filter(t => rc.en[t]).length + (G.BOSS_KIND || []).filter(K => rc.boss[K.id]).length, all = Object.keys(G.ENEMY).length + (G.BOSS_KIND || []).length;
+    return `<div class="h" style="margin-top:10px">モンスター図鑑（${got} / ${all}）</div><div class="zkGrid">${en}</div><div class="small" style="margin-top:4px">階層の主（5階ごとに現れる）</div><div class="zkGrid">${bs}</div>`;
+  }
   const charLv = c => { const S = G.S; return c === S.cur ? S.level : (S.chars[c] && S.chars[c].level) || 1; };
 
   // ------------------------------------------------------------ ホームの選択中キャラ
@@ -70,11 +93,13 @@
         ${C.gacha ? `<img class="chArt" src="${ART(selC)}" alt="" style="${own ? '' : 'filter:brightness(0) opacity(.5)'}">` : ''}
         <div class="small">${esc(C.desc)}　属性：${esc(C.el)}${C.ranged ? '（遠距離攻撃）' : ''}</div>
         <div class="small">能力の倍率：HP ${pct(base.hp)}　攻撃力 ${pct(base.atk)}　防御力 ${pct(base.def)}　攻撃速度 ${pct(base.aspd)}${base.crit ? '　会心率 +' + Math.round(base.crit * 100) + '%' : ''}${base.critd ? '　会心威力 +' + Math.round(base.critd * 100) + '%' : ''}</div>
+        ${own || selC === 'hero' ? recHtml(selC) : ''}
         ${G.CHAR_MECH && G.CHAR_MECH[selC] ? `<div class="h" style="margin-top:6px">固有の力：<span style="color:${G.CHAR_MECH[selC].col}">${esc(G.CHAR_MECH[selC].n)}</span></div><div class="small">${esc(G.CHAR_MECH[selC].d)}（ゲージは必殺技ゲージの下）</div>` : ''}
         <div class="h" style="margin-top:6px">必殺技：${esc(C.ult.n)}</div><div class="small">${esc(C.ult.d)}<br>攻撃の命中と敵の撃破でゲージがたまり、満タンで近くに敵がいれば自動で発動します。</div>
         <div class="h" style="margin-top:6px">技（レベルで習得）</div>${skills}
         ${C.gacha ? `<div class="h" style="margin-top:6px">限界突破（同じキャラを引くと★が上がる）　現在 ${own ? stars(st) : '未所持'}</div>${starRows.map(([n, t]) => `<div class="small" style="color:${own && st >= n ? '#7fe07a' : ''}">★${n}：${esc(t)}</div>`).join('')}<div class="small">★5のあとに引いた分は、育成素材「英雄の魂」${G.SOUL_PER_DUP}個に変わります。</div>` : '<div class="small" style="margin-top:6px">初期主人公は★1のまま育てます（限界突破はありません）。</div>'}
         ${selC === S.cur ? `<div class="row" style="margin-top:8px"><span class="small">英雄の魂 ${S.mats.soul}個</span><button id="soulUse" ${S.mats.soul ? '' : 'disabled'}>魂を1個使う（経験値を得る）</button></div>` : ''}
+        ${zukanHtml()}
       </div>`;
     b.querySelectorAll('.chCard').forEach(el => el.onclick = () => {
       selC = el.dataset.c; ui.render();
