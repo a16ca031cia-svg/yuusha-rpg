@@ -437,6 +437,16 @@
         if (K.id === 'king') { e.maxHp = Math.round(e.maxHp * .8); } // 手下を呼ぶ分、本体は少し柔らかい
       }
     }
+    // 強敵の特性（名前の頭に付く）：鉄壁＝受けるダメージ減・俊足＝速い・再生＝HPが回復する
+    if (o.elite && !o.boss && !o.guardian && !o.treasure) {
+      const tr = (o.trait != null ? o.trait : Math.floor(R() * 3)) % 3; e.trait = tr;
+      e.name = ['鉄壁の', '俊足の', '再生の'][tr] + e.name;
+      if (tr === 0) e.dmgMul = .6; else if (tr === 1) e.spd *= 1.5; else e.regen = .03;
+    }
+    if (o.treasure) { e.treasure = true; e.name = '金の小鬼'; e.maxHp = Math.round(e.maxHp * 2); e.spd *= 1.1; e.exp *= 3; e.fleeT = 25; } // 逃げ回る宝の小鬼
+    if (W.mod === 'frenzy') { e.spd *= 1.3; e.atkV *= 1.15; }
+    if (W.mod === 'gold' && !o.hp) e.maxHp = Math.round(e.maxHp * 1.25);
+    if (W.mod === 'swarm') e.exp = Math.round(e.exp * 1.3);
     if (o.horde) { e.horde = true; e.maxHp = Math.max(1, Math.round(e.maxHp * .55)); e.exp = Math.max(1, Math.round(e.exp * .6)); } // 大群の間：数が多い分、1体は弱い
     if (o.guardian) { e.guardian = true; e.elite = true; e.name = '守護者 ' + e.name; e.r = Math.min(10, d.r * 1.3); }
     e.hp = o.hp != null ? Math.min(o.hp, e.maxHp) : e.maxHp;
@@ -448,10 +458,13 @@
     const run = S.run; run.floor = f;
     const D = G.genFloor(f, G.floorSeed(run.seed, f));
     newWorld(D);
+    // 階層の異変（B4F以降・ボス階以外でときどき）：その階だけルールが変わる
+    W.mod = null;
+    if (f >= 4 && f % 5) { const h = ((run.seed ^ Math.imul(f, 2654435761)) >>> 0) % 100; if (h < 26) W.mod = ['gold', 'swarm', 'frenzy', 'calm'][h % 4]; }
     if (snap) {
       W.explored = G.unpackBits(snap.explored, D.W * D.H);
       if (snap.roomSeen) snap.roomSeen.forEach((v, i) => { if (i < W.roomSeen.length) W.roomSeen[i] = v; });
-      for (const e of snap.enemies) W.enemies.push(mkEnemy(e.t, e.x, e.y, { hp: e.hp, elite: e.el, boss: e.bo, guardian: e.gd }));
+      for (const e of snap.enemies) W.enemies.push(mkEnemy(e.t, e.x, e.y, { hp: e.hp, elite: e.el, boss: e.bo, guardian: e.gd, trait: e.tr, treasure: e.ts }));
       D.chests.forEach((c, i) => W.chests.push({ x: c.x, y: c.y, mimic: c.mimic, rich: c.rich, opened: !!(snap.chests && snap.chests[i]), hidden: c.mimic && !!(snap.chests && snap.chests[i]), openT: 1 }));
       for (const d of snap.drops || []) W.drops.push({ it: d.it, x: d.x, y: d.y, z: 0, vz: 0, vx: 0, vy: 0, t: 1 });
       H.x = snap.hx; H.y = snap.hy; H.cds = snap.cds || {}; H.shield = snap.shield || 0; H.ult = snap.ult || 0;
@@ -459,6 +472,11 @@
     } else {
       for (const e of D.enemies) W.enemies.push(mkEnemy(e.type, e.x, e.y, e));
       for (const c of D.chests) W.chests.push({ x: c.x, y: c.y, mimic: c.mimic, rich: c.rich, opened: false, openT: 0 });
+      // 異変：群れの階＝敵が増える・静寂の階＝敵が減り宝箱が豪華に
+      if (W.mod === 'swarm') for (const e of W.enemies.slice()) if (!e.boss && !e.guardian && !e.horde && R() < .45) { const c = mkEnemy(e.type, e.x + (R() - .5) * 10, e.y + (R() - .5) * 10, {}); W.enemies.push(c); }
+      if (W.mod === 'calm') { W.enemies = W.enemies.filter(e => e.boss || e.guardian || e.elite || R() < .45); for (const c of W.chests) c.rich = true; }
+      // 金の小鬼：ときどき、どこかの部屋に現れる
+      if (f >= 2 && R() < .12) { const rs = D.rooms.filter(r => r.id !== D.start.room && r.w * r.h >= 20); if (rs.length) { const r = rs[Math.floor(R() * rs.length)]; W.enemies.push(mkEnemy('goblin', r.cx * T + 8, r.cy * T + 8, { treasure: true })); } }
       H.x = D.start.tx * T + 8; H.y = D.start.ty * T + 10;
     }
     W.boss = W.enemies.find(e => e.boss) || null;
@@ -481,7 +499,9 @@
     }
     S.lastFloor = f;
     const rs = G.runStats(); if (!snap) rs.floorT = 0;
-    if (!snap) G.ui && G.ui.banner('B' + f + 'F', D.theme.n + (f % 5 === 0 ? '　― 階層の主が待つ ―' : ''));
+    const FM = W.mod && G.FLOOR_MOD[W.mod];
+    if (!snap) G.ui && G.ui.banner('B' + f + 'F' + (FM ? '　' + FM.n : ''), FM ? '異変：' + FM.d : D.theme.n + (f % 5 === 0 ? '　― 階層の主が待つ ―' : ''));
+    if (!snap && FM) G.sfx('alarm');
     G.save();
   };
   G.setupHome = function () {
@@ -570,7 +590,7 @@
     sync();
     return {
       explored: G.packBits(W.explored), roomSeen: Array.from(W.roomSeen),
-      enemies: W.enemies.filter(e => !e.dead).map(e => ({ t: e.type, x: Math.round(e.x), y: Math.round(e.y), hp: Math.ceil(e.hp), el: e.elite ? 1 : 0, bo: e.boss ? 1 : 0, gd: e.guardian ? 1 : 0 })),
+      enemies: W.enemies.filter(e => !e.dead).map(e => ({ t: e.type, x: Math.round(e.x), y: Math.round(e.y), hp: Math.ceil(e.hp), el: e.elite ? 1 : 0, bo: e.boss ? 1 : 0, gd: e.guardian ? 1 : 0, tr: e.trait, ts: e.treasure ? 1 : 0 })),
       chests: W.chests.map(c => c.opened ? 1 : 0), drops: W.drops.map(d => ({ x: Math.round(d.x), y: Math.round(d.y), it: d.it })),
       hx: Math.round(H.x), hy: Math.round(H.y), cds: H.cds, shield: H.shield, ult: H.ult || 0,
     };
@@ -740,6 +760,12 @@
     const c = G.recCh(lr.ch || S.cur);
     c.runs++; c.best = Math.max(c.best, lr.floor || 0); c.combo = Math.max(c.combo, lr.best || 0); c.burst = Math.max(c.burst, lr.burst || 0); c.time += lr.t || 0;
   }
+  G.FLOOR_MOD = {
+    gold: { n: '黄金の階', d: 'コイン2倍・敵が少し硬い', col: '#ffd84d' },
+    swarm: { n: '群れの階', d: '敵が多い・経験値1.3倍', col: '#ff9a6a' },
+    frenzy: { n: '狂乱の階', d: '敵が速く強い・必殺技ゲージ2倍', col: '#ff5a7a' },
+    calm: { n: '静寂の階', d: '敵が少ない・宝箱が豪華・コイン1.4倍', col: '#9fd8ff' },
+  };
   // ------------------------------------------------------------ 支援（控えの仲間が時々駆けつけて一撃）
   // S.settings.support：'auto'（一番レベルの高い控え）・'none'・キャラID
   const ownedC = id => id !== S.cur && G.CHARS[id] && (id === 'hero' || (S.chars[id] && S.chars[id].own));
@@ -941,7 +967,7 @@
     } else if (o.canCrit !== false && R() < H.st.crit) { dmg *= H.st.critd; crit = true; }
     if (o.src === 'atk' || o.src === 'skill') mechHit(e); // 通常攻撃・技が当たるとゲージがたまる
     if (o.src === 'skill' && H.act && H.act.strideMul) dmg *= H.act.strideMul; // 祝福「狩人の歩み」
-    dmg *= (.92 + R() * .16) * (e.d.armor || 1);
+    dmg *= (.92 + R() * .16) * (e.d.armor || 1) * (e.dmgMul || 1); // 鉄壁の強敵は受けるダメージが減る
     if (e.stun > 0) dmg *= 1.5; // 固有ボスのすき（鎧が砕けた・突進の後）
     else if (e.bk === 'armor' && e.armor > 0 && o.src !== 'burn' && o.src !== 'poison') armorHit(e, dmg), dmg *= .45;
     dmg = Math.max(1, dmg);
@@ -970,7 +996,7 @@
       else if (el === 'slash' && R() < .5 * ch) W.follows.push({ e, n: 1 + ex, t: .08, dmg: dmg * .3, x: e.x, y: e.y });
     }
     // 必殺技ゲージ：攻撃・技の命中でたまる（必殺技そのものでは増えない）
-    if ((o.src === 'atk' || o.src === 'skill') && !ult) H.ult = Math.min(G.ULT.max, (H.ult || 0) + G.ULT.perHit);
+    if ((o.src === 'atk' || o.src === 'skill') && !ult) H.ult = Math.min(G.ULT.max, (H.ult || 0) + G.ULT.perHit * (W.mod === 'frenzy' ? 2 : 1));
     if (G.bless && S.run) G.bless.onHit(e, dmg, o, crit); // 祝福：命中時の効果
     // 固有効果「氷印の宝玉」：ボス・強敵に氷の印をためて、6つで破裂
     if (H.st.uq && H.st.uq.iceMark && (e.boss || e.elite) && (o.src === 'atk' || o.src === 'skill') && e.hp > 0) {
@@ -1036,6 +1062,13 @@
     e.dead = true; e.deadT = 0; e.frozen = 0;
     S.stats.kills++; G.dailyAdd('kills', 1);
     { const rc = G.rec(), c = G.recCh(S.cur); c.kills++; if (!e.minion) rc.en[e.type] = (rc.en[e.type] || 0) + 1; if (e.boss) { c.bossKills++; const bk = e.bk || 'old'; rc.boss[bk] = (rc.boss[bk] || 0) + 1; } }
+    if (e.boss) { W.chests.push({ x: e.x, y: e.y + 4, mimic: false, rich: true, loot: true, opened: false, openT: 0 }); G.light(e.x, e.y, 120, 2, '#ffe8a0'); } // 階層の主の宝箱（装備が必ず入っている）
+    if (e.treasure) { // 金の小鬼：コインがあふれ出し、ときどき装備も
+      gainCoins(G.COIN.chest(W.f) * 3, e.x, e.y, true);
+      if (R() < .4) spawnDrop(G.genItem(W.f, G.rng, { minRar: 1 }), e.x, e.y);
+      G.ui.callout({ text: '金の小鬼 撃破!', sub: 'コインがあふれ出した', tone: 'gold', prio: 3, dur: 1.3, size: 1, flash: .3 });
+      G.burst(e.x, e.y - 8, 40, ['#ffd84d', '#fff2a0', '#e8a830', '#ffffff'], 140, .9, 2, -40);
+    }
     if (e.horde && W.hordeN && !W.enemies.some(o => o.horde && !o.dead)) { // 大群の間を全滅させた
       W.hordeN = 0;
       gainCoins(G.COIN.chest(W.f) * 2.5, H.x, H.y - 10, true);
@@ -1048,6 +1081,10 @@
     cb.n = cb.t > 0 ? cb.n + 1 : 1; cb.t = 2.5; cb.best = Math.max(cb.best, cb.n); cb.pop = 1;
     cb.burst = (cb.burstT > 0 ? cb.burst : 0) + 1; cb.burstT = .35;
     rs0.best = Math.max(rs0.best, cb.n);
+    if (cb.n >= 50 && cb.n % 50 === 0) { // コンボ達成ボーナス：50コンボごとにコインの雨
+      gainCoins(G.COIN.chest(W.f) * .4 * Math.min(4, cb.n / 50), H.x, H.y - 10, true);
+      G.ui.callout({ text: cb.n + ' COMBO!!', sub: 'コンボ達成ボーナス', tone: 'gold', prio: 3, dur: 1.2, size: 1, flash: .25 }); G.sfx('lvup');
+    }
     // 一掃：0.35秒以内に5体以上まとめて倒した瞬間（画面いっぱいの文字・一瞬のスロー）
     if (cb.burst === 5) { G.ui.callout({ text: '一掃!!', sub: 'まとめて薙ぎ払った！', tone: 'red', prio: 3, dur: 1.4, size: 1.25, flash: .4, flashCol: '#ffd0a0' }); G.shake(5); G.slowmo(.3, .3); G.sfx('combo', 40); }
     gainExp(e.exp * (1 + Math.min(.5, (cb.n - 1) * .02)));
@@ -1084,7 +1121,7 @@
     } else if (e.type === 'mimic') gainCoins(G.COIN.mimic(W.f), e.x, e.y, true);
     else if (e.elite) gainCoins(G.COIN.elite(W.f), e.x, e.y, true);
     else if (R() < G.COIN.enemyCh * luck) gainCoins(G.COIN.enemy(W.f) * (.7 + R() * .6), e.x, e.y);
-    if (!H.act || H.act.k !== 'ult') H.ult = Math.min(G.ULT.max, (H.ult || 0) + G.ULT.perKill); // 必殺技ゲージ（必殺技での撃破では増えない）
+    if (!H.act || H.act.k !== 'ult') H.ult = Math.min(G.ULT.max, (H.ult || 0) + G.ULT.perKill * (W.mod === 'frenzy' ? 2 : 1)); // 必殺技ゲージ（必殺技での撃破では増えない）
     rs0.maxBurst = Math.max(rs0.maxBurst || 0, cb.burst); // 結果画面：最大同時撃破
     if (G.bless && S.run) {
       G.bless.onKill(e, e.lastO);
@@ -1096,6 +1133,7 @@
   // ガチャコイン：獲得した時点で所持数に足す（死亡しても失わない）。金色の粒が勇者へ飛ぶ
   function gainCoins(n, x, y, big) {
     if (G.bless && S.run) n *= G.bless.coinMul(); // 祝福「黄金の加護」
+    if (W && W.mod === 'gold') n *= 2; else if (W && W.mod === 'calm') n *= 1.4; // 異変：黄金の階・静寂の階
     n = Math.max(1, Math.round(n));
     S.coins += n; const rs = G.runStats(); rs.coins = (rs.coins || 0) + n;
     G.popText(x, y - 26, '+' + n + '枚', '#ffd84d', big ? 10 : 7);
@@ -1972,6 +2010,12 @@
     gainCoins(G.COIN.chest(W.f) * (.8 + R() * .4) * (c.rich ? 2.2 : 1), c.x, c.y - 4, true); // 宝箱：まとまった枚数のコイン（宝物庫の箱は多め）
     G.burst(c.x, c.y - 6, 22, ['#fff6c0', '#ffd84d', '#ffffff'], 80, .8, 1, 60);
     G.light(c.x, c.y, 80, .8, '#ffe8a0');
+    // 中身の装備：階層の主の宝箱はSR以上が必ず（25%でSSR）、ふつうの宝箱もときどき
+    if (c.loot) {
+      const it = G.genItem(W.f, G.rng, { rar: R() < .25 ? 3 : 2 }); spawnDrop(it, c.x, c.y - 4);
+      G.ui.callout({ text: '討伐の報酬!', sub: G.RARITY[it.rar].n + '　' + it.name, tone: 'gold', prio: 3, dur: 1.3, size: .9, flash: .25 });
+      G.fxAdd({ k: 'pillar', x: c.x, y: c.y, r: 10, h: 80, dur: .6, col: G.RARITY[it.rar].c });
+    } else if (R() < (c.rich ? .3 : .14)) spawnDrop(G.genItem(W.f, G.rng, { minRar: c.rich ? 1 : 0 }), c.x, c.y - 4);
     H.thinkT = 0;
   }
 
@@ -2065,6 +2109,17 @@
       if (H.dead) { e.vx = G.damp(e.vx, 0, 6, dt); e.vy = G.damp(e.vy, 0, 6, dt); continue; }
       if (Math.abs(dx) > 2) e.face = dx > 0 ? 1 : -1;
       const df = e.d;
+      if (e.regen && e.hp < e.maxHp) { e.hp = Math.min(e.maxHp, e.hp + e.maxHp * e.regen * dt); if (R() < dt * 4) G.part(e.x + (R() - .5) * 10, e.y - 6 - R() * 12, 0, -14, .5, '#7fff8a', 1, 0, 1); }
+      if (e.treasure) { // 金の小鬼：勇者から逃げる（1.3秒走って1.7秒休む）。しばらくすると逃げ去る
+        if (!e.seenMsg && e.seenT > .5) { e.seenMsg = true; G.ui.toast('金の小鬼だ！ 逃がすな！'); G.sfx('chest'); }
+        if (e.seenMsg) e.fleeT -= dt;
+        if (e.fleeT <= 0) { e.dead = true; e.deadT = .5; G.burst(e.x, e.y - 8, 20, ['#ffd84d', '#ffffff'], 80, .5, 1, -60); G.ui.toast('金の小鬼に逃げられた…'); continue; }
+        if (R() < dt * 6) G.part(e.x + (R() - .5) * 10, e.y - 8 - R() * 10, 0, -10, .5, '#ffd84d', 1, 0, 1);
+        const run = (e.t % 3) < 1.3; // 走るのは短く、休むのは長め（追いつけるように）
+        if (run && d < 150) { stepToward(e, e.x - dx * 3, e.y - dy * 3, e.spd, dt); }
+        else { e.vx = G.damp(e.vx, 0, 8, dt); e.vy = G.damp(e.vy, 0, 8, dt); }
+        moveBody(e, e.vx * dt, e.vy * dt); continue;
+      }
       if (e.bk) { const r = bossAI(e, dt, dx, dy, d); if (r) { if (r === 1) moveBody(e, e.vx * dt, e.vy * dt); continue; } }
       if (e.atk) {
         e.atkT += dt;

@@ -198,8 +198,8 @@
       ctx.drawImage(flip ? s.wf : s.wn, snap(e.x) - w * k / 2, snap(e.y) - h * k + 2, w * k, h * k);
       ctx.globalAlpha = 1; return;
     }
-    if (e.elite || e.boss) {
-      const au = (e.boss ? sp.gold : sp.aura)[fi], img = flip ? au.f : au.n;
+    if (e.elite || e.boss || e.treasure) {
+      const au = (e.boss || e.treasure ? sp.gold : sp.aura)[fi], img = flip ? au.f : au.n;
       ctx.globalAlpha = .45 + Math.sin(G.W.time * 6) * .2;
       for (const [dx, dy] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) ctx.drawImage(img, x + dx * PX * 2, y + dy * PX * 2, w, h);
       ctx.globalAlpha = 1;
@@ -209,6 +209,7 @@
     const warn = e.atk && !e.atkDone && Math.floor(e.atkT * 20) % 2 === 0;
     ctx.drawImage(e.flash > 0 ? (flip ? s.wf : s.wn) : (flip ? s.f : s.n), x, y, w, h);
     if (warn) { ctx.globalAlpha = .45; ctx.drawImage(flip ? sp.aura[fi].f : sp.aura[fi].n, x, y, w, h); ctx.globalAlpha = 1; }
+    if (e.treasure) { ctx.globalAlpha = .55; ctx.drawImage(flip ? sp.gold[fi].f : sp.gold[fi].n, x, y, w, h); ctx.globalAlpha = 1; } // 金の小鬼は全身が金色
     if (e.frozen > 0) {
       ctx.globalAlpha = .6; ctx.drawImage(flip ? sp.ice[fi].f : sp.ice[fi].n, x, y, w, h); ctx.globalAlpha = 1;
       ctx.fillStyle = '#e8f8ff';

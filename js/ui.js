@@ -145,7 +145,7 @@
     $('bestTxt').textContent = '最深 B' + S.maxFloor + 'F';
     $('goldTxt').textContent = 'コイン ' + S.coins.toLocaleString() + '枚';
     const pr = G.progress();
-    $('progTxt').textContent = pr ? (pr.complete ? '探索完了 → 下り階段へ' : `部屋 ${pr.rooms}/${pr.roomsT}　敵 残り${pr.enemies}　宝箱 ${pr.chests}`) + (H.rush ? '　≫疾走中' : '') : '';
+    $('progTxt').textContent = pr ? (pr.complete ? '探索完了 → 下り階段へ' : `部屋 ${pr.rooms}/${pr.roomsT}　敵 残り${pr.enemies}　宝箱 ${pr.chests}`) + (H.rush ? '　≫疾走中' : '') + (W && W.mod && G.FLOOR_MOD[W.mod] ? '　◆' + G.FLOOR_MOD[W.mod].n : '') + (W && !W.home && W.f % 5 ? '　ボスまであと' + (5 - W.f % 5) + '階' : '') : '';
     // 技クールダウン
     for (const d of document.querySelectorAll('#skills .sk[data-id]')) {
       const id = d.dataset.id;
