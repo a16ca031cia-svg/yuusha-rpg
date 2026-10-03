@@ -360,6 +360,24 @@
           G.fxAdd({ k: 'ring', x: sp.x, y: sp.y, r: 50, col: '#ffe9a0', dur: .8 }); G.light(sp.x, sp.y, 160, 1.4, '#ffe9a0');
           G.burst(sp.x, sp.y - 10, 30, ['#fff6c0', '#ffd84d', '#ffffff'], 100, .9, 1, -60);
           if (G.bless) G.bless.gainSoon('祝福の祭壇', 1, .6);
+        } else if (r.kind === 'spring' && sp && !sp.used) {
+          sp.used = true;
+          const lost = H.st.maxHp - H.hp; H.hp = H.st.maxHp; H.shield = Math.max(H.shield || 0, H.st.maxHp * .25);
+          if (lost >= 1) G.num(H.x, H.y - 36, lost, 'heal', H);
+          G.ui.banner('癒やしの泉', 'HPが全回復し、障壁に包まれた'); G.sfx('shield');
+          G.fxAdd({ k: 'ring', x: sp.x, y: sp.y, r: 46, col: '#8fe3ff', dur: .8 }); G.light(sp.x, sp.y, 150, 1.4, '#8fe3ff');
+          G.burst(H.x, H.y - 12, 26, ['#bff0ff', '#8fe3ff', '#ffffff'], 80, .9, 1, -70);
+        } else if (r.kind === 'library' && sp && !sp.used) {
+          sp.used = true;
+          gainExp(G.expNeed(S.level) * .35 / (H.st.expMul || 1)); // 次のレベルまでの35%
+          H.cds = {}; H.ult = Math.min(G.ULT.max, (H.ult || 0) + G.ULT.max * .5);
+          G.ui.banner('隠し書庫', '古い書物から学んだ（経験値・技の再使用・必殺技ゲージ）'); G.sfx('learn');
+          G.fxAdd({ k: 'ring', x: sp.x, y: sp.y, r: 46, col: '#ffd27a', dur: .8 }); G.light(sp.x, sp.y, 150, 1.4, '#ffd27a');
+          G.burst(sp.x, sp.y - 14, 24, ['#fff1a8', '#ffd27a', '#ffffff'], 70, 1, 1, -50);
+        } else if (r.kind === 'horde' && sp && !sp.used) {
+          sp.used = true;
+          let n = 0; for (const e of W.enemies) if (e.horde && !e.dead) { e.awake = true; e.cd = .3 + R() * .9; e.hopT = .3 + R() * .3; n++; }
+          if (n) { G.ui.banner('大群の間', 'すべて倒すとコインのボーナス'); G.sfx('alarm'); G.shake(3); W.hordeN = n; }
         } else if (r.kind === 'vault') { G.ui.toast('宝物庫だ！ 宝箱が並んでいる'); G.sfx('chest'); }
         else if (r.kind === 'guard') {
           G.ui.banner('守護者の間', '倒すと祝福を2つ得られる'); G.sfx('alarm'); G.shake(2);
@@ -412,6 +430,7 @@
         if (K.id === 'king') { e.maxHp = Math.round(e.maxHp * .8); } // 手下を呼ぶ分、本体は少し柔らかい
       }
     }
+    if (o.horde) { e.horde = true; e.maxHp = Math.max(1, Math.round(e.maxHp * .55)); e.exp = Math.max(1, Math.round(e.exp * .6)); } // 大群の間：数が多い分、1体は弱い
     if (o.guardian) { e.guardian = true; e.elite = true; e.name = '守護者 ' + e.name; e.r = Math.min(10, d.r * 1.3); }
     e.hp = o.hp != null ? Math.min(o.hp, e.maxHp) : e.maxHp;
     if (boxHit(e.x, e.y, e.r)) { e.x = Math.floor(x / T) * T + 8; e.y = Math.floor(y / T) * T + 8; }
@@ -897,6 +916,12 @@
     if (e.dead) return;
     e.dead = true; e.deadT = 0; e.frozen = 0;
     S.stats.kills++; G.dailyAdd('kills', 1);
+    if (e.horde && W.hordeN && !W.enemies.some(o => o.horde && !o.dead)) { // 大群の間を全滅させた
+      W.hordeN = 0;
+      gainCoins(G.COIN.chest(W.f) * 2.5, H.x, H.y - 10, true);
+      G.ui.callout({ text: '殲滅!!', sub: '大群を全滅させた　コインのボーナス', tone: 'gold', prio: 3, dur: 1.4, size: 1, flash: .3 });
+      G.sfx('lvup');
+    }
     const rs0 = G.runStats(); rs0.kills++;
     // コンボ：2.5秒以内の連続撃破で加算。経験値ボーナス（最大+50%）
     const cb = G.combo;

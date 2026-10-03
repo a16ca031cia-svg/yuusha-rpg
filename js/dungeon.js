@@ -162,6 +162,18 @@
         enemies.push({ type: f >= 6 ? 'golem' : 'goblin', x: r.cx * T + 8, y: r.cy * T + 8, guardian: true, elite: true });
       }
     }
+    // 癒やしの泉（入るとHP全回復＋障壁）・隠し書庫（経験値・技の再使用時間が戻る・必殺技ゲージ）・大群の間（弱い敵の大群・全滅でコイン）
+    const clearRoom = r => { for (let i = enemies.length - 1; i >= 0; i--) if (inRoom(r, enemies[i].x, enemies[i].y)) enemies.splice(i, 1); };
+    if (f >= 2 && rng.chance(.25)) { const r = take('spring'); if (r) clearRoom(r); }
+    if (f >= 4 && rng.chance(.16)) { const r = take('library'); if (r) clearRoom(r); }
+    if (f >= 3 && rng.chance(.2)) {
+      const r = take('horde');
+      if (r) {
+        clearRoom(r);
+        const n = 16 + Math.min(14, Math.floor(f / 2));
+        for (let i = 0; i < n; i++) { const p = freeTile(r, 1); enemies.push({ type: rng.chance(.75) ? 'slime' : 'bat', x: p.tx * T + 8 + rng.range(-6, 6), y: p.ty * T + 8 + rng.range(-6, 6), horde: true }); }
+      }
+    }
     // 松明（部屋の上壁）
     const torches = [];
     for (const r of rooms) {

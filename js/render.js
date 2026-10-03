@@ -229,6 +229,33 @@
       ctx.globalAlpha = 1;
     }
   }
+  // 癒やしの泉：石の縁に囲まれた丸い泉。水面がゆらめき、光の粒が昇る（使った後は光が消える）
+  function drawSpring(x0, y0, used, t) {
+    if (!used) { const g = ctx.createRadialGradient(x0, y0, 0, x0, y0, 40); g.addColorStop(0, 'rgba(140,220,255,.6)'); g.addColorStop(1, 'rgba(140,220,255,0)'); ctx.fillStyle = g; ctx.fillRect(x0 - 40, y0 - 40, 80, 80); }
+    ctx.fillStyle = '#4a4658'; ctx.beginPath(); ctx.ellipse(x0, y0, 20, 10, 0, 0, 7); ctx.fill();
+    ctx.fillStyle = '#6a6680'; ctx.beginPath(); ctx.ellipse(x0, y0 - 1, 20, 9, 0, Math.PI, 7); ctx.fill();
+    ctx.fillStyle = used ? '#2a4a5e' : '#2f7fb8'; ctx.beginPath(); ctx.ellipse(x0, y0, 16, 7, 0, 0, 7); ctx.fill();
+    ctx.fillStyle = used ? '#3a6a80' : '#6fd0ff';
+    for (let i = 0; i < 3; i++) { const w = 4 + ((t * 1.3 + i * .37) % 1) * 10, yy = y0 - 3 + i * 2.5; ctx.globalAlpha = used ? .4 : .5 + .3 * Math.sin(t * 3 + i); ctx.fillRect(Math.round(x0 - w / 2 + Math.sin(t * 2 + i) * 3), yy, Math.round(w), 1); }
+    ctx.globalAlpha = 1;
+    if (!used) for (let i = 0; i < 4; i++) { const p = (t * .6 + i / 4) % 1; ctx.globalAlpha = 1 - p; ctx.fillStyle = '#dff6ff'; ctx.fillRect(Math.round(x0 - 8 + i * 5 + Math.sin(t + i) * 2), Math.round(y0 - 2 - p * 22), 1, 1); }
+    ctx.globalAlpha = 1;
+  }
+  // 隠し書庫：本棚と、宙に浮いて光る本（使った後は閉じて暗い）
+  function drawLibrary(x0, y0, used, t, bob) {
+    const cols = ['#a83a3a', '#3a68a8', '#c8a040', '#4a8a4a', '#7a4aa0', '#b8682a'];
+    for (const sx of [-17, 9]) {
+      ctx.fillStyle = '#4a2a16'; ctx.fillRect(x0 + sx, y0 - 22, 10, 23);
+      ctx.fillStyle = '#6e4224'; ctx.fillRect(x0 + sx, y0 - 22, 10, 1);
+      for (let row = 0; row < 3; row++) for (let k = 0; k < 4; k++) { ctx.fillStyle = cols[(row * 4 + k + (sx > 0 ? 3 : 0)) % cols.length]; ctx.fillRect(x0 + sx + 1 + k * 2, y0 - 20 + row * 7, 2, 5 - ((k + row) % 2)); }
+    }
+    if (!used) { const g = ctx.createRadialGradient(x0, y0 - 14, 0, x0, y0 - 14, 22); g.addColorStop(0, 'rgba(255,220,140,.6)'); g.addColorStop(1, 'rgba(255,220,140,0)'); ctx.fillStyle = g; ctx.fillRect(x0 - 22, y0 - 36, 44, 44); }
+    ctx.fillStyle = '#3a2a1e'; ctx.fillRect(x0 - 2, y0 - 8, 4, 8); ctx.fillRect(x0 - 5, y0 - 1, 10, 2); // 書見台
+    const by = y0 - 14 + bob;
+    ctx.fillStyle = used ? '#5a4a3a' : '#f4e6c0'; ctx.fillRect(x0 - 6, by, 5, 4); ctx.fillRect(x0 + 1, by, 5, 4); // 開いた本
+    ctx.fillStyle = used ? '#3a2e24' : '#8a5a2a'; ctx.fillRect(x0 - 1, by, 2, 4);
+    if (!used) { ctx.fillStyle = '#b8a070'; for (let i = 0; i < 2; i++) { ctx.fillRect(x0 - 5, by + 1 + i * 2, 3, 1); ctx.fillRect(x0 + 2, by + 1 + i * 2, 3, 1); } if (Math.sin(t * 5) > .5) { ctx.fillStyle = '#fff6c0'; ctx.fillRect(x0 + 6, by - 3, 1, 1); } }
+  }
   function drawBossTell(e, t) {
     const x = e.x, y = e.y;
     ctx.save();
@@ -607,7 +634,7 @@
     // Yソートで描画
     const list = [];
     for (const c of W.chests) list.push({ y: c.y, k: 0, o: c });
-    for (const s of W.specials || []) if (s.kind === 'altar') list.push({ y: s.y, k: 4, o: s });
+    for (const s of W.specials || []) if (s.kind === 'altar' || s.kind === 'spring' || s.kind === 'library') list.push({ y: s.y, k: 4, o: s });
     for (const d of W.drops) list.push({ y: d.y, k: 1, o: d });
     for (const e of W.enemies) list.push({ y: e.y + (e.type === 'bat' ? 6 : 0), k: 2, o: e });
     list.push({ y: H.y, k: 3, o: H });
@@ -637,6 +664,8 @@
         // 祝福の祭壇：石の台の上に浮かぶ結晶。使う前は金色に光り、使った後は暗い
         const s = it.o; if (!W.explored[G.tileOfD(D, s.x, s.y)]) continue;
         const used = s.used || W.roomSeen[s.room], x0 = snap(s.x), y0 = snap(s.y), bob = used ? 0 : Math.sin(t * 2.5) * 1.5;
+        if (s.kind === 'spring') { drawSpring(x0, y0, used, t); continue; }
+        if (s.kind === 'library') { drawLibrary(x0, y0, used, t, bob); continue; }
         if (!used) { const g = ctx.createRadialGradient(x0, y0 - 10, 0, x0, y0 - 10, 26); g.addColorStop(0, 'rgba(255,230,140,.55)'); g.addColorStop(1, 'rgba(255,230,140,0)'); ctx.fillStyle = g; ctx.fillRect(x0 - 26, y0 - 36, 52, 52); }
         ctx.fillStyle = '#3a3448'; ctx.fillRect(x0 - 7, y0 - 6, 14, 7); ctx.fillStyle = '#5a5470'; ctx.fillRect(x0 - 7, y0 - 6, 14, 2); ctx.fillStyle = '#2a2436'; ctx.fillRect(x0 - 5, y0 - 10, 10, 4);
         ctx.fillStyle = used ? '#6a6480' : '#ffe27a'; ctx.beginPath(); ctx.moveTo(x0, y0 - 24 + bob); ctx.lineTo(x0 + 5, y0 - 17 + bob); ctx.lineTo(x0, y0 - 11 + bob); ctx.lineTo(x0 - 5, y0 - 17 + bob); ctx.closePath(); ctx.fill();
