@@ -343,16 +343,28 @@
       const p = Math.min(1, f.t / f.dur);
       const fx = f.follow ? H.x : f.x, fy = f.follow ? H.y : f.y;
       switch (f.k) {
+        case 'supGhost': {
+          // 支援に来た仲間：光りながら現れ、少し浮かんで消える
+          const img = f.c === 'hero' ? (G.heroPose && G.heroPose('idle', 0)) : (G.charPortrait && G.charPortrait(f.c));
+          if (!img || !img.width) break;
+          const isH = f.c === 'hero', ox = (isH ? HF.OX : 84) * PX, oy = (isH ? HF.OY : 146) * PX;
+          const a = p < .15 ? p / .15 : p > .7 ? (1 - p) / .3 : 1;
+          ctx.save(); ctx.translate(snap(f.x), snap(f.y - p * 6)); ctx.scale((isH ? -1 : 1) * (f.face || 1), 1);
+          ctx.globalAlpha = a * .85; ctx.drawImage(img, -ox, -oy, img.width * PX, img.height * PX);
+          ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = a * (1 - p) * .6; ctx.drawImage(img, -ox, -oy, img.width * PX, img.height * PX);
+          ctx.restore(); ctx.globalAlpha = 1;
+          break;
+        }
         case 'pillar': {
           // 氷柱：足元から一気に突き上がり、最後は砕けて消える
           const up = G.easeOut(Math.min(1, p / .22)), fade = p > .7 ? 1 - (p - .7) / .3 : 1, hh = f.h * up, w = f.r;
           ctx.save(); ctx.translate(f.x, f.y); ctx.globalAlpha = fade;
           for (const [dx, sc, hk] of [[-w * .7, .55, .6], [w * .75, .5, .55], [0, 1, 1]]) {
             const bw = w * sc, top = -hh * hk;
-            ctx.fillStyle = '#7fc8ff'; ctx.beginPath(); ctx.moveTo(dx - bw, 0); ctx.lineTo(dx, top); ctx.lineTo(dx + bw, 0); ctx.closePath(); ctx.fill();
-            ctx.fillStyle = '#e8f8ff'; ctx.beginPath(); ctx.moveTo(dx - bw * .35, 0); ctx.lineTo(dx, top); ctx.lineTo(dx + bw * .15, 0); ctx.closePath(); ctx.fill();
+            ctx.fillStyle = f.col || '#7fc8ff'; ctx.beginPath(); ctx.moveTo(dx - bw, 0); ctx.lineTo(dx, top); ctx.lineTo(dx + bw, 0); ctx.closePath(); ctx.fill();
+            ctx.fillStyle = f.col ? '#ffffff' : '#e8f8ff'; ctx.beginPath(); ctx.moveTo(dx - bw * .35, 0); ctx.lineTo(dx, top); ctx.lineTo(dx + bw * .15, 0); ctx.closePath(); ctx.fill();
           }
-          ctx.globalAlpha = fade * .45; ctx.fillStyle = '#bfeaff'; ctx.beginPath(); ctx.ellipse(0, 0, w * 1.6, w * .5, 0, 0, 7); ctx.fill();
+          ctx.globalAlpha = fade * .45; ctx.fillStyle = f.col || '#bfeaff'; ctx.beginPath(); ctx.ellipse(0, 0, w * 1.6, w * .5, 0, 0, 7); ctx.fill();
           ctx.restore(); ctx.globalAlpha = 1;
           break;
         }
@@ -553,7 +565,7 @@
   }
   function drawNums(W) {
     for (const n of W.nums) {
-      const cols = { n: '#ffffff', crit: '#ffe04a', chain: '#9fdcff', boom: '#ffa050', burn: '#ff8a3a', poison: '#a8f060', follow: '#dfe6ff', skill: '#fff0b0', mech: '#ffb8f0', hurt: '#ff5a4a', heal: '#7fff8a' };
+      const cols = { n: '#ffffff', crit: '#ffe04a', chain: '#9fdcff', boom: '#ffa050', burn: '#ff8a3a', poison: '#a8f060', follow: '#dfe6ff', skill: '#fff0b0', mech: '#ffb8f0', sup: '#b8ffcf', hurt: '#ff5a4a', heal: '#7fff8a' };
       const dg = G.digits(cols[n.k] || '#ffffff');
       const str = G.fmt(n.v);
       const big = n.k === 'crit' ? 2 : 1;

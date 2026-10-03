@@ -24,6 +24,13 @@
     const cell = (k, v) => `<div><span>${k}</span><b>${v}</b></div>`;
     return `<div class="h" style="margin-top:6px">この仲間の記録</div><div class="recGrid">${cell('最深', r.best ? 'B' + r.best + 'F' : '―')}${cell('出撃', r.runs + '回')}${cell('撃破', r.kills.toLocaleString() + '体')}${cell('階層の主', r.bossKills + '体')}${cell('最大コンボ', r.combo)}${cell('探索時間', hm)}</div>`;
   }
+  // 支援（控えの仲間）：探索中、約12秒ごとに駆けつけて一撃
+  function supHtml(c) {
+    const S = G.S, on = G.supportId() === c, mode = S.settings.support || 'auto';
+    return `<div class="supBox ${on ? 'on' : ''}"><div class="row" style="justify-content:space-between;gap:6px"><div><b>支援</b>${on ? '<span class="eqtag" style="margin-left:6px">支援中</span>' : ''}</div>
+      <div class="row" style="gap:4px">${on && mode === c ? '<button data-sup="auto">おまかせに戻す</button>' : on ? '' : `<button class="primary" data-sup="${c}">支援に来てもらう</button>`}${mode !== 'none' ? '<button data-sup="none">支援なし</button>' : '<button data-sup="auto">支援あり</button>'}</div></div>
+      <div class="small">控えにいる間、探索中に約12秒ごとに駆けつけて${esc(G.SUPPORT_D[c] || '一撃を放つ')}。威力は出撃中のキャラの攻撃力と、この仲間のレベル・★で上がります。${mode === 'auto' ? '（おまかせ：一番レベルの高い控えが来ます）' : ''}</div></div>`;
+  }
   const enCache = {};
   function enURL(type, big) {
     const k = type + (big ? 'B' : ''); if (enCache[k]) return enCache[k];
@@ -93,6 +100,7 @@
         ${C.gacha ? `<img class="chArt" src="${ART(selC)}" alt="" style="${own ? '' : 'filter:brightness(0) opacity(.5)'}">` : ''}
         <div class="small">${esc(C.desc)}　属性：${esc(C.el)}${C.ranged ? '（遠距離攻撃）' : ''}</div>
         <div class="small">能力の倍率：HP ${pct(base.hp)}　攻撃力 ${pct(base.atk)}　防御力 ${pct(base.def)}　攻撃速度 ${pct(base.aspd)}${base.crit ? '　会心率 +' + Math.round(base.crit * 100) + '%' : ''}${base.critd ? '　会心威力 +' + Math.round(base.critd * 100) + '%' : ''}</div>
+        ${(own || selC === 'hero') && selC !== S.cur && G.supportId ? supHtml(selC) : ''}
         ${own || selC === 'hero' ? recHtml(selC) : ''}
         ${G.CHAR_MECH && G.CHAR_MECH[selC] ? `<div class="h" style="margin-top:6px">固有の力：<span style="color:${G.CHAR_MECH[selC].col}">${esc(G.CHAR_MECH[selC].n)}</span></div><div class="small">${esc(G.CHAR_MECH[selC].d)}（ゲージは必殺技ゲージの下）</div>` : ''}
         <div class="h" style="margin-top:6px">必殺技：${esc(C.ult.n)}</div><div class="small">${esc(C.ult.d)}<br>攻撃の命中と敵の撃破でゲージがたまり、満タンで近くに敵がいれば自動で発動します。</div>
@@ -107,6 +115,7 @@
     });
     if ($('chGacha')) $('chGacha').onclick = () => ui.open('gacha');
     if ($('chSwitch')) $('chSwitch').onclick = () => { const err = G.switchChar(selC); ui.toast(err || G.CHARS[selC].n + ' で出撃します'); ui.render(); ui.refreshHome(); };
+    b.querySelectorAll('[data-sup]').forEach(x => x.onclick = () => { G.S.settings.support = x.dataset.sup; G.save(); G.sfx('click'); ui.toast(x.dataset.sup === 'auto' ? '支援：おまかせ（一番レベルの高い控え）' : x.dataset.sup === 'none' ? '支援：なし' : G.CHARS[x.dataset.sup].n + ' が支援に来ます'); ui.render(); });
     if ($('soulUse')) $('soulUse').onclick = () => { if (G.useSoul(1)) ui.toast('英雄の魂を使いました'); ui.render(); };
   };
 

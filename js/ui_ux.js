@@ -131,7 +131,7 @@
   }
 
   // ---------------------------------------------------------- 結果画面の「何が強かったか」
-  const SRC_N = { atk: '通常攻撃', skill: '技', ult: '必殺技', chain: '連鎖雷', follow: '追撃斬', boom: '撃破爆発', burn: '燃焼', poison: '毒', uq_ret: '迅雷の剣', uq_mark: '氷印の宝玉', mech: 'キャラ固有の一撃' };
+  const SRC_N = { atk: '通常攻撃', skill: '技', ult: '必殺技', chain: '連鎖雷', follow: '追撃斬', boom: '撃破爆発', burn: '燃焼', poison: '毒', uq_ret: '迅雷の剣', uq_mark: '氷印の宝玉', mech: 'キャラ固有の一撃', sup: '仲間の支援' };
   function srcName(k) {
     if (k === 'mech' && G.CHAR_MECH && G.CHAR_MECH[G.S.cur]) return G.CHAR_MECH[G.S.cur].n + '（固有）';
     if (k.startsWith('sk_')) { const id = k.slice(3); try { return G.skillEvo(id).names[G.skillStageOf(G.skillLvAt(id, G.S.level))] || G.SKILLS[id].n; } catch (e) { return (G.SKILLS[id] || {}).n || '技'; } }

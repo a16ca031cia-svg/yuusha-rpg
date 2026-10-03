@@ -503,12 +503,13 @@
     const f0 = Math.max(1, Math.min(G.checkpoint(), from | 0 || 1));
     G.transition(() => {
       S.mode = 'dungeon';
-      if (rr) { S.run = rr; G.enterFloor(rr.floor, rr.snap); } // 中断した挑戦の続きから
+      if (rr) { S.run = rr; H.supId = undefined; G.enterFloor(rr.floor, rr.snap); } // 中断した挑戦の続きから
       else {
         S.stats.runs++;
         if (G.bless) G.bless.reset();
         S.run = { seed: (R() * 4294967296) >>> 0, floor: f0, start: f0, bless: {}, awk: [], rs: { kills: 0, items: 0, best: 0, t: 0, floorT: 0 } };
         H.hp = H.st.maxHp; H.cds = {}; H.shield = 0; H.ult = 0; H.cm = 0; H.cmFull = false; // 出撃開始時は必殺技ゲージ0
+        H.supId = G.supportId(); H.supT = 6; // 支援に来てくれる控えの仲間
         G.enterFloor(f0);
       }
       G.ui.onMode();
@@ -731,6 +732,54 @@
     if (!lr) return;
     const c = G.recCh(lr.ch || S.cur);
     c.runs++; c.best = Math.max(c.best, lr.floor || 0); c.combo = Math.max(c.combo, lr.best || 0); c.burst = Math.max(c.burst, lr.burst || 0); c.time += lr.t || 0;
+  }
+  // ------------------------------------------------------------ 支援（控えの仲間が時々駆けつけて一撃）
+  // S.settings.support：'auto'（一番レベルの高い控え）・'none'・キャラID
+  const ownedC = id => id !== S.cur && G.CHARS[id] && (id === 'hero' || (S.chars[id] && S.chars[id].own));
+  const lvOf = id => (S.chars[id] && S.chars[id].level) || 1;
+  G.supportId = function () {
+    sync();
+    const s = S.settings.support || 'auto';
+    if (s === 'none') return null;
+    if (s !== 'auto') return ownedC(s) ? s : null;
+    let best = null, bl = -1;
+    for (const id in G.CHARS) if (ownedC(id) && id !== 'hero' && lvOf(id) > bl) { bl = lvOf(id); best = id; }
+    if (!best && ownedC('hero')) best = 'hero';
+    return best;
+  };
+  G.SUPPORT_D = { hero: '衝撃波で周りの敵を吹き飛ばす', thunder: '近くの敵4体に雷を落とす', ice: '敵の群れをまとめて凍らせる', samurai: '敵の列を一直線に斬り抜ける' };
+  function supportTick(dt) {
+    if (H.supId === undefined) H.supId = G.supportId(); // 続きから・読み込み直した時
+    const id = H.supId; if (!id || H.dead) return;
+    H.supT = (H.supT == null ? 6 : H.supT) - dt;
+    if (H.supT > 0) return;
+    const tg = W.enemies.filter(e => !e.dead && seen(e) && G.dist(e.x, e.y, H.x, H.y) < 130).sort((a, b) => G.dist(a.x, a.y, H.x, H.y) - G.dist(b.x, b.y, H.x, H.y));
+    if (!tg.length) { H.supT = .5; return; }
+    H.supT = 12;
+    const st = (S.chars[id] && S.chars[id].star) || 1, pw = H.st.atk * (1.6 + .25 * (st - 1) + .015 * lvOf(id)), C = G.CHARS[id], col = C.col || '#ffe9a0';
+    const side = H.face || 1, gx = H.x - side * 18, gy = H.y + 2;
+    G.fxAdd({ k: 'supGhost', x: gx, y: gy, c: id, face: side, dur: .9 });
+    G.popText(gx, gy - 50, '支援!', col, 9);
+    const hit = (e, m, kb) => hitEnemy(e, pw * m, { src: 'sup', canCrit: true, ka: Math.atan2(e.y - H.y, e.x - H.x), kb: kb || 50 });
+    if (id === 'thunder') {
+      for (const e of tg.slice(0, 4)) { G.fxAdd({ k: 'pillar', x: e.x, y: e.y, r: 9, h: 70, dur: .45, col: '#fff27a' }); hit(e, 1); }
+      G.sfx('zap'); G.shake(2);
+    } else if (id === 'ice') {
+      const c = tg[0], r = 56;
+      G.fxAdd({ k: 'ring', x: c.x, y: c.y, r, col: '#bfeaff', dur: .5 }); G.burst(c.x, c.y - 8, 26, ['#e8f8ff', '#9fdcff', '#ffffff'], 110, .6, 1);
+      for (const e of W.enemies) if (!e.dead && G.dist(e.x, e.y, c.x, c.y) <= r + e.r) { hit(e, .8, 0); if (!e.dead) { e.frozen = Math.max(e.frozen, 1.8 * (e.boss ? .35 : 1)); e.atk = false; } }
+      G.sfx('freeze');
+    } else if (id === 'samurai') {
+      const a = Math.atan2(tg[0].y - H.y, tg[0].x - H.x), L = 130, ca = Math.cos(a), sa = Math.sin(a);
+      for (let k = 0; k < 4; k++) G.fxAdd({ k: 'eslash', x: H.x + ca * L * (k + .5) / 4, y: H.y - 8 + sa * L * (k + .5) / 4, ang: a, r: 30, dur: .25 });
+      for (const e of W.enemies) { if (e.dead) continue; const dx = e.x - H.x, dy = e.y - H.y, along = dx * ca + dy * sa, off = Math.abs(-dx * sa + dy * ca); if (along > -6 && along < L && off < 16 + e.r) hit(e, 1.1, 70); }
+      G.sfx('slash2'); G.shake(2);
+    } else {
+      const r = 64;
+      G.fxAdd({ k: 'ring', x: H.x, y: H.y, r, col: '#ffe9a0', dur: .45 });
+      for (const e of W.enemies) if (!e.dead && G.dist(e.x, e.y, H.x, H.y) <= r + e.r) hit(e, 1, 120);
+      G.sfx('quake'); G.shake(3);
+    }
   }
   // ------------------------------------------------------------ キャラ固有の仕組み
   // 攻撃を当てる（集中だけは時間）とゲージ H.cm がたまり、満タンになると次に当てた攻撃でキャラごとの一撃が出る
@@ -2239,7 +2288,7 @@
     updMusic(dt);
     const cb = G.combo; cb.t -= dt; cb.burstT -= dt; cb.pop = Math.max(0, cb.pop - dt * 5);
     if (cb.t <= 0 && cb.n) cb.n = 0;
-    updHero(dt); mechTick(dt);
+    updHero(dt); mechTick(dt); supportTick(dt);
     if (G.bless) G.bless.tick(dt); // 祝福（時間で起こる効果・遅れて起こる効果）
     updEnemies(dt);
     updProjs(dt);
