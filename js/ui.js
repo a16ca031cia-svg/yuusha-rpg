@@ -487,15 +487,17 @@
       return `<div class="skcard ${learned ? '' : 'locked'} ${I.stage ? 'skstage' + I.stage : ''}"><canvas width="14" height="14" data-ic="${id}"></canvas>
         <div style="flex:1;min-width:0"><div>${learned ? I.name : sk.n} ${learned ? '' : `<span class="small">（Lv${sk.lv}で習得）</span>`}</div>
         <div>${evo}</div>
-        <div class="d">${esc(sk.desc)}${I.stage ? '　' + esc(E.up.slice(1, I.stage + 1).join('・')) : ''}<br>自動使用：${esc(sk.cond)}　／　威力 攻撃力×${I.mult.toFixed(2)}　／　再使用 ${I.cd.toFixed(1)}秒</div></div>
+        <div class="d">${esc(sk.desc)}${I.stage ? '　' + esc(E.up.slice(1, I.stage + 1).join('・')) : ''}<br>自動使用：${esc(sk.cond)}　／　威力 攻撃力×${I.mult.toFixed(2)}　／　再使用 ${I.cd.toFixed(1)}秒</div>
+        ${learned ? `<div class="skBr">${Object.entries(G.SKILL_BR).map(([k, B]) => `<button data-br="${id}" data-k="${k}" class="${G.skillBr(id) === k ? 'on' : ''}" title="${B.d}" ${S.mode !== 'home' && G.skillBr(id) !== k ? 'disabled' : ''}>${B.n}</button>`).join('')}</div>` : ''}</div>
         ${learned ? `<button data-tog="${id}" class="${off ? '' : 'on'}">${off ? '使わない' : '使う'}</button>` : ''}</div>`;
     }).join('');
     b.innerHTML = `<div class="col" style="flex:1;min-width:0">
       <div class="h">技（覚えた技はすべて自動で使います。レベル3ごとに技Lvが上がり、技Lv5・12で進化）</div>
-      <div class="small">習得 ${n} / ${G.charSkills().length}　使用中 ${on}。戦闘中は、条件を満たした技のうち強い技（下の一覧の下の方）から使います。使いたくない技は「使わない」にできます。</div>
+      <div class="small">習得 ${n} / ${G.charSkills().length}　使用中 ${on}。戦闘中は、条件を満たした技のうち強い技（下の一覧の下の方）から使います。使いたくない技は「使わない」にできます。<br>技ごとに分岐を選べます（ホームでだけ変更可）：標準／範囲（範囲+35%・威力-15%）／威力（威力+40%・範囲-20%・再使用+10%）。</div>
       <div class="col scroll" style="flex:1">${list}</div></div>`;
     b.querySelectorAll('canvas[data-ic]').forEach(c => { const x = c.getContext('2d'); x.imageSmoothingEnabled = false; x.drawImage(G.skIcon(c.dataset.ic), 0, 0); });
     b.querySelectorAll('[data-tog]').forEach(el => el.onclick = () => { const id = el.dataset.tog; S.skillOff[id] = !S.skillOff[id]; ui.refreshSkills(); G.save(); ui.render(); });
+    b.querySelectorAll('[data-br]').forEach(el => el.onclick = () => { if (S.mode !== 'home') return; S.skillBr = S.skillBr || {}; S.skillBr[el.dataset.br] = el.dataset.k; G.recalc && G.recalc(); G.save(); G.sfx('click'); ui.render(); });
   }
   // ---------- 所持品画面
   function filteredItems() {

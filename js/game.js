@@ -180,14 +180,21 @@
     return st;
   };
   // 技の強さ（技レベルと進化段階から）：威力倍率・再使用時間・範囲・連撃数
+  // 技の分岐（ホームで自由に変えられる）：標準・範囲（広く浅く）・威力（狭く重く）
+  G.SKILL_BR = {
+    std: { n: '標準', d: 'バランス型', mult: 1, area: 1, cd: 1 },
+    wide: { n: '範囲', d: '範囲 +35%・威力 -15%', mult: .85, area: 1.35, cd: 1 },
+    power: { n: '威力', d: '威力 +40%・範囲 -20%・再使用 +10%', mult: 1.4, area: .8, cd: 1.1 },
+  };
+  G.skillBr = id => { const b = (G.S.skillBr || {})[id]; return G.SKILL_BR[b] ? b : 'std'; };
   G.skillInfo = function (id, L, st) {
     st = st || (G.hero && G.hero.st);
-    const sk = G.SKILLS[id], lv = G.skillLvAt(id, L || G.S.level), stage = G.skillStageOf(lv), k = Math.max(0, lv - 1);
+    const sk = G.SKILLS[id], lv = G.skillLvAt(id, L || G.S.level), stage = G.skillStageOf(lv), k = Math.max(0, lv - 1), BR = G.SKILL_BR[G.skillBr(id)];
     return {
       lv, stage, name: G.skillEvo(id).names[stage], kind: sk.kind || id, el: sk.el || null, ex: G.starExtra(G.curStar()),
-      mult: sk.mult * (1 + .08 * k + .3 * stage) * G.starSkillMul(G.curStar()), // ★3・★5で技も強化
-      cd: Math.max(.8, sk.cd * (1 - Math.min(.3, .02 * k)) * (1 - (st ? st.cdr : 0))),
-      area: 1 + .03 * k + .15 * stage + .15 * G.starExtra(G.curStar()),
+      mult: sk.mult * (1 + .08 * k + .3 * stage) * G.starSkillMul(G.curStar()) * BR.mult, // ★3・★5で技も強化
+      cd: Math.max(.8, sk.cd * (1 - Math.min(.3, .02 * k)) * (1 - (st ? st.cdr : 0)) * BR.cd),
+      area: (1 + .03 * k + .15 * stage + .15 * G.starExtra(G.curStar())) * BR.area,
     };
   };
   // 技の進化の名前と強化内容（キャラ専用技は動きの種類（kind）の強化内容を使う）
